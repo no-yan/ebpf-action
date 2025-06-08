@@ -15,7 +15,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang llvm libbpf-dev linux-tools-$(uname -r)
+          sudo apt-get install -y clang llvm libbpf-dev linux-tools-$(uname -r) linux-headers-$(uname -r)
 
       - name: Compile eBPF Program
         run: |
