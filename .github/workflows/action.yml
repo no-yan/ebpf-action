@@ -12,19 +12,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Create a image
         run: |
-          sudo apt-get update
-          sudo apt-get install -y clang llvm libbpf-dev linux-tools-$(uname -r) linux-headers-generic
-
-      - name: Compile eBPF Program
+          docker buildx bake --load
+      - name: Run the image
         run: |
-          clang -O2 -g -target bpf -c xdp.c -o xdp.o
-
-      - name: Verify eBPF Object File
-        run: |
-          llvm-objdump -S xdp.o
-
-      - name: Run eBPF Program (Attempt Load)
-        run: |
-          sudo ip link set dev lo xdp obj xdp.o sec xdp
+          docker run myapp
