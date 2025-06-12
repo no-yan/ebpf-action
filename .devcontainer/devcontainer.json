@@ -1,0 +1,29 @@
+{
+  "name": "epbf-devcontainer",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "privileged": true,
+  "features": {
+    "ghcr.io/devcontainers-community/features/llvm": {
+      "version": "latest"
+    }
+  },
+  "mounts": [
+    "source=${localWorkspaceFolder}/target,target=${containerWorkspaceFolder}/target,type=bind,consistency=cached"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vadimcn.vscode-lldb",
+        "fill-labs.dependi",
+        "tamasfe.even-better-toml",
+        "Swellaby.vscode-rust-test-adapter",
+        "JScearcy.rust-doc-viewer",
+        "rust-lang.rust-analyzer"
+      ]
+    }
+  },
+  "runArgs": ["--cap-add=CAP_BPF"],
+  "postCreateCommand": "sudo mount -t debugfs debugfs /sys/kernel/debug/"
+}
