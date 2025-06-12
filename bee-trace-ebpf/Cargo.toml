@@ -1,10 +1,10 @@
 [package]
-name = "socket-ebpf"
+name = "bee-trace-ebpf"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-socket-common = { path = "../socket-common" }
+bee-trace-common = { path = "../bee-trace-common" }
 
 aya-ebpf = { workspace = true }
 aya-log-ebpf = { workspace = true }
@@ -13,5 +13,5 @@ aya-log-ebpf = { workspace = true }
 which = { workspace = true }
 
 [[bin]]
-name = "socket"
+name = "bee-trace"
 path = "src/main.rs"

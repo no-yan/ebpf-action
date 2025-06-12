@@ -24,14 +24,14 @@ async fn main() -> anyhow::Result<()> {
     // reach for `Bpf::load_file` instead.
     let mut ebpf = aya::Ebpf::load(aya::include_bytes_aligned!(concat!(
         env!("OUT_DIR"),
-        "/socket"
+        "/bee-trace"
     )))?;
     if let Err(e) = aya_log::EbpfLogger::init(&mut ebpf) {
         // This can happen if you remove all log statements from your eBPF program.
         warn!("failed to initialize eBPF logger: {e}");
     }
     let listener = std::net::TcpListener::bind("localhost:0")?;
-    let prog: &mut SocketFilter = ebpf.program_mut("socket").unwrap().try_into()?;
+    let prog: &mut SocketFilter = ebpf.program_mut("bee_trace").unwrap().try_into()?;
     prog.load()?;
     prog.attach(&listener)?;
 

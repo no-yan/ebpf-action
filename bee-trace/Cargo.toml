@@ -1,12 +1,12 @@
 [package]
-name = "socket"
+name = "bee-trace"
 version = "0.1.0"
 edition = "2021"
 
 license.workspace = true
 
 [dependencies]
-socket-common = { path = "../socket-common", features = ["user"] }
+bee-trace-common = { path = "../bee-trace-common", features = ["user"] }
 
 anyhow = { workspace = true, default-features = true }
 aya = { workspace = true }
@@ -36,8 +36,8 @@ aya-build = { workspace = true }
 # Finally note that *any* usage of `artifact = ...` in *any* Cargo.toml in the workspace breaks
 # workflows with stable cargo; stable cargo outright refuses to load manifests that use unstable
 # features.
-socket-ebpf = { path = "../socket-ebpf" }
+bee-trace-ebpf = { path = "../bee-trace-ebpf" }
 
 [[bin]]
-name = "socket"
+name = "bee-trace"
 path = "src/main.rs"

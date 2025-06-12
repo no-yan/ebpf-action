@@ -4,7 +4,7 @@
 use aya_ebpf::{macros::socket_filter, programs::SkBuffContext};
 
 #[socket_filter]
-pub fn socket(_ctx: SkBuffContext) -> i64 {
+pub fn bee_trace(_ctx: SkBuffContext) -> i64 {
     0
 }
 

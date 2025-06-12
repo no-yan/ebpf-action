@@ -4,7 +4,7 @@
 # Create a stage for building the application.
 
 ARG RUST_VERSION=1.87.0
-ARG APP_NAME=ebpf-action
+ARG APP_NAME=bee-trace
 FROM rust:${RUST_VERSION}-slim-bullseye AS build
 ARG APP_NAME
 WORKDIR /app
@@ -16,19 +16,22 @@ WORKDIR /app
 # Leverage a bind mount to the src directory to avoid having to copy the
 # source code into the container. Once built, copy the executable to an
 # output directory before the cache mounted /app/target is unmounted.
+RUN --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    apt-get update && \
+    apt-get install -y
 RUN rustup install stable
 RUN rustup toolchain install nightly --component rust-src && \
     cargo install bpf-linker
-RUN --mount=type=bind,source=socket,target=socket \
-    --mount=type=bind,source=socket-common,target=socket-common \
-    --mount=type=bind,source=socket-ebpf,target=socket-ebpf \
+RUN --mount=type=bind,source=bee-trace,target=bee-trace \
+    --mount=type=bind,source=bee-trace-common,target=bee-trace-common \
+    --mount=type=bind,source=bee-trace-ebpf,target=bee-trace-ebpf \
     --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
-    --mount=type=bind,source=Cargo.lock,target=Cargo.lock \
     --mount=type=cache,target=/app/target/ \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
     <<EOF
 set -e
-RUST_BACKTRACE=1 cargo build --locked --release
+RUST_BACKTRACE=1 cargo build --release
 cp ./target/release/$APP_NAME /bin/myapp
 EOF
 
