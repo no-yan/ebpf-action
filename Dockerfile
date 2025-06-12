@@ -16,14 +16,16 @@ WORKDIR /app
 # Leverage a bind mount to the src directory to avoid having to copy the
 # source code into the container. Once built, copy the executable to an
 # output directory before the cache mounted /app/target is unmounted.
-RUN --mount=type=bind,source=src,target=src \
+RUN --mount=type=bind,source=socket,target=socket \
+    --mount=type=bind,source=socket-common,target=socket-common \
+    --mount=type=bind,source=socket-ebpf,target=socket-ebpf \
     --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
     --mount=type=bind,source=Cargo.lock,target=Cargo.lock \
     --mount=type=cache,target=/app/target/ \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
     <<EOF
 set -e
-cargo build --locked --release
+RUST_BACKTRACE=1 cargo build --locked --release
 cp ./target/release/$APP_NAME /bin/myapp
 EOF
 
