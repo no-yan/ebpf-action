@@ -16,6 +16,9 @@ WORKDIR /app
 # Leverage a bind mount to the src directory to avoid having to copy the
 # source code into the container. Once built, copy the executable to an
 # output directory before the cache mounted /app/target is unmounted.
+RUN rustup install stable
+RUN rustup toolchain install nightly --component rust-src && \
+    cargo install bpf-linker
 RUN --mount=type=bind,source=socket,target=socket \
     --mount=type=bind,source=socket-common,target=socket-common \
     --mount=type=bind,source=socket-ebpf,target=socket-ebpf \
