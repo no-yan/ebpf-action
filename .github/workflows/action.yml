@@ -1,8 +1,6 @@
 name: eBPF Test on GitHub Actions
 on:
   push:
-    branches:
-      - main
 
 jobs:
   ebpf-test:
