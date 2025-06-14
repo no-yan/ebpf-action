@@ -1,7 +1,9 @@
+use core::time;
+use std::thread::sleep;
+
 use aya::programs::SocketFilter;
 #[rustfmt::skip]
 use log::{debug, warn};
-use tokio::signal;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -34,10 +36,10 @@ async fn main() -> anyhow::Result<()> {
     let prog: &mut SocketFilter = ebpf.program_mut("bee_trace").unwrap().try_into()?;
     prog.load()?;
     prog.attach(&listener)?;
+    println!("Program started");
 
-    let ctrl_c = signal::ctrl_c();
-    println!("Waiting for Ctrl-C...");
-    ctrl_c.await?;
+    let five_sec = time::Duration::from_secs(5);
+    sleep(five_sec);
     println!("Exiting...");
 
     Ok(())
