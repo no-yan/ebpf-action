@@ -1,8 +1,6 @@
 name: eBPF Test on GitHub Actions
 on:
   push:
-    branches:
-      - main
 
 jobs:
   ebpf-test:
@@ -17,4 +15,4 @@ jobs:
           docker buildx bake --load
       - name: Run the image
         run: |
-          docker run --privileged myapp
+          docker run --cap-add CAP_BPF myapp
