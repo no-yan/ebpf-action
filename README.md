@@ -20,6 +20,21 @@ cargo run --release --config 'target."cfg(all())".runner="sudo -E"'
 Cargo build scripts are used to automatically build the eBPF correctly and include it in the
 program.
 
+### Filtering configuration
+
+The eBPF program uses block and allow lists to decide whether to drop or permit
+packets. Set the `BLOCK_LIST` or `ALLOW_LIST` environment variables to a
+comma‑separated list of IPv4 addresses. The block list may also contain domain
+names, which are resolved when the loader starts.
+
+Example:
+
+```bash
+BLOCK_LIST="example.com,93.184.216.34" \
+ALLOW_LIST="1.2.3.4" \
+cargo run --release --config 'target."cfg(all())".runner="sudo -E"'
+```
+
 ## Cross-compiling on macOS
 
 Cross compilation should work on both Intel and Apple Silicon Macs.
