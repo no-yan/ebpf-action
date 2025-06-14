@@ -15,4 +15,4 @@ jobs:
           docker buildx bake --load
       - name: Run the image
         run: |
-          docker run --privileged myapp
+          docker run myapp
