@@ -11,6 +11,8 @@ bee-trace-common = { path = "../bee-trace-common", features = ["user"] }
 anyhow = { workspace = true, default-features = true }
 aya = { workspace = true }
 aya-log = { workspace = true }
+bytes = "1.0"
+clap = { workspace = true, features = ["derive"] }
 env_logger = { workspace = true }
 libc = { workspace = true }
 log = { workspace = true }
@@ -20,7 +22,13 @@ tokio = { workspace = true, features = [
     "rt-multi-thread",
     "net",
     "signal",
+    "time",
 ] }
+
+[dev-dependencies]
+assert_matches = { workspace = true }
+tempfile = { workspace = true }
+tokio-test = { workspace = true }
 [build-dependencies]
 anyhow = { workspace = true }
 aya-build = { workspace = true }

@@ -1,12 +1,29 @@
-use core::time;
-use std::thread::sleep;
+use std::time::Duration;
 
-use aya::programs::SocketFilter;
-#[rustfmt::skip]
-use log::{debug, warn};
+use aya::{
+    maps::PerfEventArray,
+    programs::{KProbe, TracePoint},
+    util::online_cpus,
+    Ebpf,
+};
+use aya_log::EbpfLogger;
+use bee_trace::{Args, EventFormatter};
+use bee_trace_common::FileReadEvent;
+use bytes::BytesMut;
+use clap::Parser;
+use log::{debug, info, warn};
+use tokio::{signal, time::timeout};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let args = Args::parse();
+
+    // Validate arguments
+    if let Err(e) = args.validate() {
+        eprintln!("Error: {}", e);
+        std::process::exit(1);
+    }
+
     env_logger::init();
 
     // Bump the memlock rlimit. This is needed for older kernels that don't use the
@@ -20,27 +37,137 @@ async fn main() -> anyhow::Result<()> {
         debug!("remove limit on locked memory failed, ret is: {ret}");
     }
 
-    // This will include your eBPF object file as raw bytes at compile-time and load it at
-    // runtime. This approach is recommended for most real-world use cases. If you would
-    // like to specify the eBPF program at runtime rather than at compile-time, you can
-    // reach for `Bpf::load_file` instead.
-    let mut ebpf = aya::Ebpf::load(aya::include_bytes_aligned!(concat!(
+    // Load the eBPF program
+    let mut ebpf = Ebpf::load(aya::include_bytes_aligned!(concat!(
         env!("OUT_DIR"),
         "/bee-trace"
     )))?;
-    if let Err(e) = aya_log::EbpfLogger::init(&mut ebpf) {
-        // This can happen if you remove all log statements from your eBPF program.
+
+    if let Err(e) = EbpfLogger::init(&mut ebpf) {
         warn!("failed to initialize eBPF logger: {e}");
     }
-    let listener = std::net::TcpListener::bind("localhost:0")?;
-    let prog: &mut SocketFilter = ebpf.program_mut("bee_trace").unwrap().try_into()?;
-    prog.load()?;
-    prog.attach(&listener)?;
-    println!("Program started");
 
-    let five_sec = time::Duration::from_secs(5);
-    sleep(five_sec);
-    println!("Exiting...");
+    // Attach the appropriate probe based on user selection
+    match args.probe_type.as_str() {
+        "vfs_read" => {
+            let program: &mut KProbe = ebpf.program_mut("vfs_read").unwrap().try_into()?;
+            program.load()?;
+            program.attach("vfs_read", 0)?;
+            info!("Attached kprobe to vfs_read");
+        }
+        "sys_enter_read" => {
+            let program: &mut TracePoint =
+                ebpf.program_mut("sys_enter_read").unwrap().try_into()?;
+            program.load()?;
+            program.attach("syscalls", "sys_enter_read")?;
+            info!("Attached tracepoint to sys_enter_read");
+        }
+        _ => {
+            return Err(anyhow::anyhow!(
+                "Unsupported probe type: {}",
+                args.probe_type
+            ));
+        }
+    }
+
+    // Get the perf event array
+    let mut perf_array = PerfEventArray::try_from(ebpf.take_map("FILE_READ_EVENTS").unwrap())?;
+
+    println!("🐝 bee-trace file reading monitor started");
+    println!("Probe type: {}", args.probe_type);
+    if let Some(cmd_filter) = &args.command {
+        println!("Filtering by command: {}", cmd_filter);
+    }
+    if let Some(duration) = args.duration {
+        println!("Running for {} seconds", duration);
+    }
+    println!("Press Ctrl+C to exit\n");
+
+    // Print header using formatter
+    let formatter = EventFormatter::new(args.verbose);
+    println!("{}", formatter.header());
+    println!("{}", formatter.separator());
+
+    // Create the event processing future
+    let args_clone = args.clone();
+    let event_processor = async move {
+        let cpus = match online_cpus() {
+            Ok(cpus) => cpus,
+            Err(e) => {
+                warn!("Failed to get online CPUs: {:?}", e);
+                return;
+            }
+        };
+
+        for cpu_id in cpus {
+            let mut buf = match perf_array.open(cpu_id, None) {
+                Ok(buf) => buf,
+                Err(e) => {
+                    warn!("Failed to open perf buffer for CPU {}: {}", cpu_id, e);
+                    continue;
+                }
+            };
+
+            let args_for_task = args_clone.clone();
+            let formatter_for_task = EventFormatter::new(args_for_task.verbose);
+            tokio::spawn(async move {
+                let mut buffers = (0..10)
+                    .map(|_| BytesMut::with_capacity(1024))
+                    .collect::<Vec<_>>();
+
+                loop {
+                    let events = buf.read_events(&mut buffers);
+                    match events {
+                        Ok(events) => {
+                            for buf in buffers.iter().take(events.read) {
+                                let event = unsafe {
+                                    buf.as_ptr().cast::<FileReadEvent>().read_unaligned()
+                                };
+                                process_event(&event, &args_for_task, &formatter_for_task);
+                            }
+                        }
+                        Err(e) => {
+                            warn!("Error reading perf events: {}", e);
+                        }
+                    }
+                    tokio::task::yield_now().await;
+                }
+            });
+        }
+
+        // Keep the main task alive
+        loop {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+    };
+
+    // Handle duration or wait for Ctrl+C
+    if let Some(duration) = args.duration {
+        match timeout(Duration::from_secs(duration), event_processor).await {
+            Ok(_) => {}
+            Err(_) => println!("\nTracing completed after {} seconds", duration),
+        }
+    } else {
+        tokio::select! {
+            _ = event_processor => {},
+            _ = signal::ctrl_c() => {
+                println!("\nReceived Ctrl+C, exiting...");
+            }
+        }
+    }
 
     Ok(())
+}
+
+fn process_event(event: &FileReadEvent, args: &Args, formatter: &EventFormatter) {
+    // Apply filters
+    if !args.should_filter_event(event) {
+        return;
+    }
+
+    if !args.should_show_event(event) {
+        return;
+    }
+
+    println!("{}", formatter.format_event(event));
 }

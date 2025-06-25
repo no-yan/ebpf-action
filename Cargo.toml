@@ -28,6 +28,11 @@ log = { version = "0.4.22", default-features = false }
 tokio = { version = "1.40.0", default-features = false }
 which = { version = "6.0.0", default-features = false }
 
+# Test dependencies
+assert_matches = { version = "1.5.0", default-features = false }
+tempfile = { version = "3.13.0", default-features = false }
+tokio-test = { version = "0.4.4", default-features = false }
+
 [profile.release.package.bee-trace-ebpf]
 debug = 2
 codegen-units = 1

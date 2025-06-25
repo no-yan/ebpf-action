@@ -12,5 +12,8 @@ user = ["aya"]
 [dependencies]
 aya = { workspace = true, optional = true }
 
+[dev-dependencies]
+assert_matches = { workspace = true }
+
 [lib]
 path = "src/lib.rs"
