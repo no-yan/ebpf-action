@@ -1,7 +1,7 @@
 use aya_ebpf::{
-    macros::{kprobe, lsm, map},
+    macros::{kprobe, map},
     maps::PerfEventArray,
-    programs::{LsmContext, ProbeContext},
+    programs::ProbeContext,
     EbpfContext,
 };
 use bee_trace_common::NetworkEvent;
@@ -78,6 +78,9 @@ unsafe fn try_udp_sendmsg(ctx: ProbeContext) -> Result<u32, i64> {
     Ok(0)
 }
 
+// LSM hooks can be problematic and require special kernel configuration
+// Commenting out for compatibility
+/*
 #[lsm(hook = "socket_connect")]
 pub fn socket_connect_hook(ctx: LsmContext) -> i32 {
     match unsafe { try_socket_connect(ctx) } {
@@ -109,3 +112,4 @@ unsafe fn try_socket_connect(ctx: LsmContext) -> Result<i32, i64> {
     // Return 0 to allow, -EPERM (-1) to block
     Ok(0)
 }
+*/

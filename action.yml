@@ -1,0 +1,84 @@
+name: 'eBPF Security Monitor'
+description: 'Monitor GitHub Actions workflows for supply chain security threats using eBPF'
+author: 'bee-trace'
+branding:
+  icon: 'shield'
+  color: 'yellow'
+
+inputs:
+  config-path:
+    description: 'Path to security configuration file'
+    required: false
+    default: '.github/security.yml'
+  
+  probe-type:
+    description: 'Type of monitoring to enable'
+    required: false
+    default: 'all'
+    # Options: vfs_read, sys_enter_read, file_monitor, network_monitor, memory_monitor, all
+  
+  duration:
+    description: 'Maximum duration to run monitoring (in seconds)'
+    required: false
+    # If not specified, runs until job completion
+  
+  command-filter:
+    description: 'Filter events by process name (substring match)'
+    required: false
+  
+  verbose:
+    description: 'Enable verbose output with additional details'
+    required: false
+    default: 'false'
+  
+  security-mode:
+    description: 'Enable comprehensive security monitoring mode'
+    required: false
+    default: 'true'
+  
+  report-format:
+    description: 'Output report format'
+    required: false
+    default: 'json,markdown'
+    # Options: json, markdown, both
+  
+  upload-artifacts:
+    description: 'Upload monitoring results as GitHub Actions artifacts'
+    required: false
+    default: 'true'
+
+outputs:
+  report-path:
+    description: 'Path to the generated security monitoring report'
+  
+  events-detected:
+    description: 'Number of security events detected'
+  
+  high-severity-events:
+    description: 'Number of high-severity security events detected'
+
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  args:
+    - '--probe-type'
+    - ${{ inputs.probe-type }}
+    - ${{ inputs.config-path && '--config' || '' }}
+    - ${{ inputs.config-path || '' }}
+    - ${{ inputs.duration && '--duration' || '' }}
+    - ${{ inputs.duration || '' }}
+    - ${{ inputs.command-filter && '--command' || '' }}
+    - ${{ inputs.command-filter || '' }}
+    - ${{ inputs.verbose == 'true' && '--verbose' || '' }}
+    - ${{ inputs.security-mode == 'true' && '--security-mode' || '' }}
+  env:
+    REPORT_FORMAT: ${{ inputs.report-format }}
+    UPLOAD_ARTIFACTS: ${{ inputs.upload-artifacts }}
+    GITHUB_TOKEN: ${{ github.token }}
+    GITHUB_REPOSITORY: ${{ github.repository }}
+    GITHUB_SHA: ${{ github.sha }}
+    GITHUB_REF: ${{ github.ref }}
+    GITHUB_WORKFLOW: ${{ github.workflow }}
+    GITHUB_JOB: ${{ github.job }}
+    GITHUB_RUN_ID: ${{ github.run_id }}
+    GITHUB_RUN_NUMBER: ${{ github.run_number }}

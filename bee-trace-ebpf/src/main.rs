@@ -2,6 +2,9 @@
 #![no_main]
 
 mod lsm;
+mod file_monitor;
+mod network;
+mod memory;
 
 #[cfg(not(test))]
 #[panic_handler]

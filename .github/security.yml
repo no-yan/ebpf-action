@@ -1,0 +1,150 @@
+# eBPF Security Monitor Configuration
+# This file configures the security monitoring behavior for your GitHub Actions workflows
+
+# Network monitoring configuration
+network:
+  # Block connections to these IP addresses
+  blocked_ips:
+    - "1.2.3.4"           # Example malicious IP
+    - "192.168.1.100"     # Example internal IP to block
+    - "10.0.0.5"          # Another example IP
+  
+  # Block connections to these domains
+  blocked_domains:
+    - "evil-domain.com"
+    - "malicious-site.org"
+    - "suspicious-cdn.net"
+  
+  # Allowed domains (if specified, only these domains are permitted)
+  # allowed_domains:
+  #   - "github.com"
+  #   - "api.github.com"
+  #   - "registry.npmjs.org"
+  
+  # Monitor specific ports (empty means monitor all)
+  monitored_ports: []
+  
+  # Alert on any outbound connections (useful for air-gapped environments)
+  alert_on_any_connection: false
+
+# File access monitoring configuration  
+files:
+  # Patterns for sensitive files to monitor for read access
+  watch_read:
+    - "**/credentials.json"
+    - "**/.env"
+    - "**/.env.*"
+    - "**/id_rsa"
+    - "**/id_dsa" 
+    - "**/id_ecdsa"
+    - "**/id_ed25519"
+    - "**/*.pem"
+    - "**/*.key"
+    - "**/*.p12"
+    - "**/*.pfx"
+    - "**/*.crt"
+    - "**/*.cer"
+    - "**/*.der"
+    - "**/config.json"
+    - "**/secrets.yaml"
+    - "**/secrets.yml"
+    - "**/private.key"
+    - "**/.ssh/id_*"
+    - "**/.aws/credentials"
+    - "**/.docker/config.json"
+    - "**/kubeconfig"
+    - "**/service-account.json"
+  
+  # Patterns for sensitive files to monitor for write access
+  watch_write:
+    - "**/id_rsa"
+    - "**/id_dsa"
+    - "**/id_ecdsa" 
+    - "**/id_ed25519"
+    - "**/.ssh/id_*"
+    - "**/*.pem"
+    - "**/*.key"
+    - "**/private.key"
+  
+  # Directories to exclude from monitoring (performance optimization)
+  exclude_paths:
+    - "/tmp/**"
+    - "/var/tmp/**"
+    - "**/.git/**"
+    - "**/node_modules/**"
+    - "**/target/**"
+    - "**/.cargo/**"
+
+# Memory and process monitoring configuration
+memory:
+  # Environment variables that contain secrets (monitor access)
+  secret_env_patterns:
+    - "SECRET_*"
+    - "PASSWORD*" 
+    - "PASSWD*"
+    - "TOKEN*"
+    - "KEY*"
+    - "API_KEY*"
+    - "*_SECRET"
+    - "*_PASSWORD"
+    - "*_TOKEN"
+    - "*_KEY"
+    - "GITHUB_TOKEN"
+    - "NPM_TOKEN"
+    - "DOCKER_PASSWORD"
+    - "AWS_SECRET_ACCESS_KEY"
+    - "AZURE_CLIENT_SECRET"
+  
+  # Alert on any inter-process memory reading attempts
+  alert_on_memory_access: true
+  
+  # Processes to exclude from memory monitoring
+  exclude_processes:
+    - "systemd"
+    - "kernel"
+    - "kthread"
+
+# Reporting configuration
+reporting:
+  # Include stack traces for high-severity events
+  include_stack_traces: false
+  
+  # Maximum number of events to include in reports
+  max_events_per_type: 100
+  
+  # Severity levels: low, medium, high, critical
+  severity_levels:
+    file_access: "medium"
+    network_connection: "medium" 
+    blocked_connection: "high"
+    memory_access: "high"
+    secret_env_access: "medium"
+
+# Performance tuning
+performance:
+  # Buffer size for event collection (higher = more memory, less CPU)
+  event_buffer_size: 1024
+  
+  # Event sampling rate (1.0 = all events, 0.1 = 10% of events)
+  sampling_rate: 1.0
+  
+  # Maximum events per second (rate limiting)
+  max_events_per_second: 1000
+
+# Advanced configuration
+advanced:
+  # Enable CO-RE (Compile Once Run Everywhere) mode
+  enable_core: true
+  
+  # Custom eBPF program parameters
+  ebpf_params:
+    stack_trace_depth: 10
+    max_entries_per_map: 10000
+  
+  # Kernel version compatibility
+  min_kernel_version: "4.18"
+  
+  # Enable experimental features
+  experimental:
+    uprobe_monitoring: false
+    network_packet_inspection: false

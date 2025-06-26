@@ -9,10 +9,12 @@ mod cli_argument_parsing {
     fn should_parse_default_arguments() {
         let args = Args::try_parse_from(&["bee-trace"]).unwrap();
 
-        assert_eq!(args.probe_type, "vfs_read");
+        assert_eq!(args.probe_type, "file_monitor");
         assert_eq!(args.duration, None);
         assert_eq!(args.command, None);
         assert!(!args.verbose);
+        assert!(!args.security_mode);
+        assert_eq!(args.config, None);
     }
 
     #[test]
@@ -199,6 +201,8 @@ mod end_to_end_scenarios {
             duration: None,
             command: None,
             verbose: false,
+            security_mode: false,
+            config: None,
         };
         assert!(valid_vfs.validate().is_ok());
 
@@ -207,6 +211,8 @@ mod end_to_end_scenarios {
             duration: None,
             command: None,
             verbose: false,
+            security_mode: false,
+            config: None,
         };
         assert!(valid_syscall.validate().is_ok());
 
@@ -215,6 +221,8 @@ mod end_to_end_scenarios {
             duration: None,
             command: None,
             verbose: false,
+            security_mode: false,
+            config: None,
         };
         assert!(invalid.validate().is_err());
     }

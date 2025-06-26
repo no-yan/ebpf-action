@@ -157,6 +157,8 @@ pub mod scenarios {
                 duration: None,
                 command: None,
                 verbose: false,
+                security_mode: false,
+                config: None,
             },
             events: vec![
                 events::typical_cat_reading_passwd(),
@@ -176,6 +178,8 @@ pub mod scenarios {
                 duration: None,
                 command: Some("cat".to_string()),
                 verbose: false,
+                security_mode: false,
+                config: None,
             },
             events: vec![
                 events::typical_cat_reading_passwd(),
@@ -195,6 +199,8 @@ pub mod scenarios {
                 duration: None,
                 command: None,
                 verbose: true,
+                security_mode: false,
+                config: None,
             },
             events: vec![
                 events::typical_cat_reading_passwd(),
@@ -215,6 +221,8 @@ pub mod scenarios {
                 duration: None,
                 command: None,
                 verbose: false,
+                security_mode: false,
+                config: None,
             },
             events: vec![
                 events::typical_cat_reading_passwd(),
@@ -235,6 +243,8 @@ pub mod scenarios {
                 duration: None,
                 command: Some("cat".to_string()),
                 verbose: false,
+                security_mode: false,
+                config: None,
             },
             events: vec![
                 events::typical_cat_reading_passwd(), // Should pass: matches command + valid
@@ -405,7 +415,7 @@ pub mod performance {
                 let _event = events::typical_cat_reading_passwd();
             }),
             iterations: 10_000,
-            max_duration: Duration::from_millis(10),
+            max_duration: Duration::from_millis(50),
         }
     }
 

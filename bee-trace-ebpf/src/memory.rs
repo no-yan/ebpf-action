@@ -1,8 +1,8 @@
 use aya_ebpf::{
     helpers::bpf_probe_read_user_str_bytes,
-    macros::{map, tracepoint, uprobe},
+    macros::{map, tracepoint},
     maps::PerfEventArray,
-    programs::{ProbeContext, TracePointContext},
+    programs::TracePointContext,
     EbpfContext,
 };
 use bee_trace_common::{ProcessMemoryEvent, SecretAccessEvent};
@@ -71,7 +71,8 @@ unsafe fn try_sys_enter_process_vm_readv(ctx: TracePointContext) -> Result<u32, 
 }
 
 // Note: uprobe for getenv would need to be attached to specific binaries
-// This is a placeholder implementation
+// Commenting out uprobe as it requires specific binary attachment and can cause verifier issues
+/*
 #[uprobe]
 pub fn getenv(ctx: ProbeContext) -> u32 {
     match unsafe { try_getenv(ctx) } {
@@ -119,6 +120,7 @@ unsafe fn try_getenv(ctx: ProbeContext) -> Result<u32, i64> {
     ENV_ACCESS_EVENTS.output(&ctx, &event, 0);
     Ok(0)
 }
+*/
 
 unsafe fn is_sensitive_env_var(var_name: &[u8; 128], len: u32) -> bool {
     // Check for common sensitive environment variable patterns

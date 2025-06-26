@@ -107,6 +107,8 @@ mod event_stream_processing {
             duration: None,
             command: None,
             verbose: false,
+            security_mode: false,
+            config: None,
         };
         let formatter = EventFormatter::new(false);
 
@@ -139,6 +141,8 @@ mod event_stream_processing {
             duration: None,
             command: Some("cat".to_string()),
             verbose: false,
+            security_mode: false,
+            config: None,
         };
         let formatter = EventFormatter::new(false);
 
@@ -165,6 +169,8 @@ mod event_stream_processing {
             duration: None,
             command: None,
             verbose: false,
+            security_mode: false,
+            config: None,
         };
         let formatter = EventFormatter::new(false);
 
@@ -191,6 +197,8 @@ mod event_stream_processing {
             duration: None,
             command: None,
             verbose: true,
+            security_mode: false,
+            config: None,
         };
         let formatter = EventFormatter::new(true);
 
@@ -216,6 +224,8 @@ mod event_stream_processing {
             duration: None,
             command: None,
             verbose: false,
+            security_mode: false,
+            config: None,
         };
         let formatter = EventFormatter::new(false);
 
@@ -248,6 +258,8 @@ mod event_stream_processing {
             duration: None,
             command: Some("cat".to_string()),
             verbose: false,
+            security_mode: false,
+            config: None,
         };
         let formatter = EventFormatter::new(false);
 
@@ -287,6 +299,8 @@ mod performance_characteristics {
             duration: None,
             command: None,
             verbose: false,
+            security_mode: false,
+            config: None,
         };
         let formatter = EventFormatter::new(false);
 
@@ -321,11 +335,13 @@ mod performance_characteristics {
             duration: None,
             command: None,
             verbose: false,
+            security_mode: false,
+            config: None,
         };
         let formatter = EventFormatter::new(false);
 
         // Process events with various filename lengths
-        for i in 0..100 {
+        for _i in 0..100 {
             let event = create_large_file_read();
             processor.process_event(&event, &args, &formatter);
         }
@@ -353,6 +369,8 @@ mod edge_case_handling {
             duration: None,
             command: None,
             verbose: true, // Verbose to see all events
+            security_mode: false,
+            config: None,
         };
         let formatter = EventFormatter::new(true);
 
@@ -374,6 +392,8 @@ mod edge_case_handling {
             duration: None,
             command: None,
             verbose: true,
+            security_mode: false,
+            config: None,
         };
         let formatter = EventFormatter::new(true);
 
@@ -402,6 +422,8 @@ mod edge_case_handling {
             duration: None,
             command: Some("".to_string()),
             verbose: false,
+            security_mode: false,
+            config: None,
         };
 
         let event = create_cat_reading_passwd();
@@ -419,6 +441,8 @@ mod edge_case_handling {
             duration: None,
             command: Some("   ".to_string()),
             verbose: false,
+            security_mode: false,
+            config: None,
         };
 
         processor.process_event(&event, &whitespace_filter_args, &EventFormatter::new(false));
@@ -435,6 +459,8 @@ mod edge_case_handling {
             duration: None,
             command: None,
             verbose: true,
+            security_mode: false,
+            config: None,
         };
         let formatter = EventFormatter::new(true);
 
@@ -466,6 +492,8 @@ mod state_management {
             duration: None,
             command: None,
             verbose: false,
+            security_mode: false,
+            config: None,
         };
         let formatter = EventFormatter::new(false);
 
@@ -496,6 +524,8 @@ mod state_management {
             duration: None,
             command: None,
             verbose: false,
+            security_mode: false,
+            config: None,
         });
         let formatter = Arc::new(EventFormatter::new(false));
 

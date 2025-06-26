@@ -6,7 +6,6 @@
 #[allow(non_snake_case)]
 #[allow(non_upper_case_globals)]
 #[warn(unknown_lints)]
-#[allow(unnecessary_transmutes)]
 #[rustfmt::skip]
 pub mod vmlinux;
 

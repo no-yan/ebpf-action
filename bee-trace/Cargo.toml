@@ -26,6 +26,8 @@ tokio = { workspace = true, features = [
 ] }
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
 
 [dev-dependencies]
 assert_matches = { workspace = true }
