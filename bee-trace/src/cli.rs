@@ -1,7 +1,8 @@
-use crate::config::Config;
+use std::{path::PathBuf, time::Duration};
+
 use clap::{Arg, ArgMatches, Command};
-use std::path::PathBuf;
-use std::time::Duration;
+
+use crate::config::Config;
 
 pub struct CliApp {
     app: Command,
@@ -238,46 +239,41 @@ pub struct CliConfig {
 
 impl CliConfig {
     pub fn from_matches(matches: &ArgMatches) -> anyhow::Result<Self> {
-        let probe_type = matches.get_one::<String>("probe-type")
-            .unwrap()
-            .clone();
+        let probe_type = matches.get_one::<String>("probe-type").unwrap().clone();
 
-        let duration = matches.get_one::<u64>("duration")
+        let duration = matches
+            .get_one::<u64>("duration")
             .map(|&d| Duration::from_secs(d));
 
-        let command_filter = matches.get_one::<String>("command")
-            .cloned();
+        let command_filter = matches.get_one::<String>("command").cloned();
 
         let verbose = matches.get_flag("verbose");
         let security_mode = matches.get_flag("security-mode");
         let quiet = matches.get_flag("quiet");
         let no_header = matches.get_flag("no-header");
 
-        let config_file = matches.get_one::<PathBuf>("config")
-            .cloned();
+        let config_file = matches.get_one::<PathBuf>("config").cloned();
 
-        let output_file = matches.get_one::<PathBuf>("output")
-            .cloned();
+        let output_file = matches.get_one::<PathBuf>("output").cloned();
 
-        let output_format = matches.get_one::<String>("format")
-            .unwrap()
-            .clone();
+        let output_format = matches.get_one::<String>("format").unwrap().clone();
 
-        let filter_severity = matches.get_one::<String>("filter-severity")
-            .cloned();
+        let filter_severity = matches.get_one::<String>("filter-severity").cloned();
 
-        let exclude_pids = matches.get_many::<u32>("exclude-pids")
+        let exclude_pids = matches
+            .get_many::<u32>("exclude-pids")
             .map(|values| values.copied().collect())
             .unwrap_or_default();
 
-        let include_pids = matches.get_many::<u32>("include-pids")
+        let include_pids = matches
+            .get_many::<u32>("include-pids")
             .map(|values| values.copied().collect())
             .unwrap_or_default();
 
-        let cpu_limit = matches.get_one::<u8>("cpu-limit")
-            .copied();
+        let cpu_limit = matches.get_one::<u8>("cpu-limit").copied();
 
-        let timestamp_format = matches.get_one::<String>("timestamp-format")
+        let timestamp_format = matches
+            .get_one::<String>("timestamp-format")
             .unwrap()
             .clone();
 
@@ -302,7 +298,9 @@ impl CliConfig {
 
     pub fn merge_with_config_file(&mut self, config: &Config) -> anyhow::Result<()> {
         if self.duration.is_none() && config.monitoring.default_duration_seconds.is_some() {
-            self.duration = config.monitoring.default_duration_seconds
+            self.duration = config
+                .monitoring
+                .default_duration_seconds
                 .map(Duration::from_secs);
         }
 
@@ -335,10 +333,14 @@ impl CliConfig {
 
     pub fn validate(&self) -> anyhow::Result<()> {
         let valid_probe_types = [
-            "vfs_read", "sys_enter_read", "file_monitor", 
-            "network_monitor", "memory_monitor", "all"
+            "vfs_read",
+            "sys_enter_read",
+            "file_monitor",
+            "network_monitor",
+            "memory_monitor",
+            "all",
         ];
-        
+
         if !valid_probe_types.contains(&self.probe_type.as_str()) {
             return Err(anyhow::anyhow!("Invalid probe type: {}", self.probe_type));
         }
@@ -392,8 +394,14 @@ impl CliConfig {
     pub fn should_show_severity(&self, severity: &str) -> bool {
         if let Some(min_severity) = &self.filter_severity {
             let severity_levels = ["low", "medium", "high", "critical"];
-            let min_index = severity_levels.iter().position(|&s| s == min_severity).unwrap_or(0);
-            let event_index = severity_levels.iter().position(|&s| s == severity).unwrap_or(0);
+            let min_index = severity_levels
+                .iter()
+                .position(|&s| s == min_severity)
+                .unwrap_or(0);
+            let event_index = severity_levels
+                .iter()
+                .position(|&s| s == severity)
+                .unwrap_or(0);
             return event_index >= min_index;
         }
         true
@@ -440,33 +448,43 @@ mod tests {
     #[test]
     fn should_parse_basic_args() {
         let app = CliApp::new();
-        let matches = app.app.try_get_matches_from(vec!["bee-trace", "--probe-type", "vfs_read"]).unwrap();
-        
+        let matches = app
+            .app
+            .try_get_matches_from(vec!["bee-trace", "--probe-type", "vfs_read"])
+            .unwrap();
+
         let config = CliConfig::from_matches(&matches).unwrap();
         assert_eq!(config.probe_type, "vfs_read");
-        assert_eq!(config.verbose, false);
-        assert_eq!(config.security_mode, false);
+        assert!(!config.verbose);
+        assert!(!config.security_mode);
     }
 
     #[test]
     fn should_parse_complex_args() {
         let app = CliApp::new();
-        let matches = app.app.try_get_matches_from(vec![
-            "bee-trace",
-            "--probe-type", "network_monitor",
-            "--duration", "30",
-            "--command", "nginx",
-            "--verbose",
-            "--security-mode",
-            "--exclude-pids", "1,2,3"
-        ]).unwrap();
-        
+        let matches = app
+            .app
+            .try_get_matches_from(vec![
+                "bee-trace",
+                "--probe-type",
+                "network_monitor",
+                "--duration",
+                "30",
+                "--command",
+                "nginx",
+                "--verbose",
+                "--security-mode",
+                "--exclude-pids",
+                "1,2,3",
+            ])
+            .unwrap();
+
         let config = CliConfig::from_matches(&matches).unwrap();
         assert_eq!(config.probe_type, "network_monitor");
         assert_eq!(config.duration, Some(Duration::from_secs(30)));
         assert_eq!(config.command_filter, Some("nginx".to_string()));
-        assert_eq!(config.verbose, true);
-        assert_eq!(config.security_mode, true);
+        assert!(config.verbose);
+        assert!(config.security_mode);
         assert_eq!(config.exclude_pids, vec![1, 2, 3]);
     }
 

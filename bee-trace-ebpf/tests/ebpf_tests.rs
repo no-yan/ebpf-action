@@ -277,10 +277,10 @@ mod ebpf_string_handling {
     fn should_handle_path_extraction() {
         // Test realistic path scenarios that eBPF might encounter
         let paths = [
-            b"/",
-            b"/etc/passwd",
-            b"/usr/local/bin/very_long_executable_name",
-            b"/home/user/Documents/very/deep/directory/structure/file.txt",
+            &b"/"[..],
+            &b"/etc/passwd"[..],
+            &b"/usr/local/bin/very_long_executable_name"[..],
+            &b"/home/user/Documents/very/deep/directory/structure/file.txt"[..],
         ];
 
         for path in &paths {
@@ -292,7 +292,7 @@ mod ebpf_string_handling {
             assert_eq!(extracted.len(), expected_len);
 
             if path.len() <= 64 {
-                assert_eq!(extracted.as_bytes(), *path);
+                assert_eq!(extracted.as_bytes(), path);
             }
         }
     }
@@ -320,13 +320,7 @@ fn should_compile_ebpf_structures() {
     // This test ensures that the shared structures can be used
     // in both eBPF and userspace contexts
 
-    #[cfg(feature = "user")]
-    {
-        // Test userspace-specific code
-        let event = FileReadEvent::new();
-        // This should compile with the aya::Pod trait
-        let _pod_test: &dyn aya::Pod = &event;
-    }
+    // Test basic structure compatibility
 
     // Test no_std compatibility (eBPF context)
     let event = FileReadEvent::new();

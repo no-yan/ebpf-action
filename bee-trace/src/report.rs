@@ -1,10 +1,9 @@
-use crate::{ReportEvent, SecurityEvent, SecurityReport};
+use std::{collections::HashMap, fs::File, io::Write, path::Path};
+
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::Write;
-use std::path::Path;
+
+use crate::{ReportEvent, SecurityEvent, SecurityReport};
 
 pub struct ReportGenerator {
     report: SecurityReport,
@@ -50,15 +49,24 @@ impl ReportGenerator {
     pub fn print_summary(&self) {
         println!("\n📊 Security Monitoring Summary");
         println!("===============================");
-        println!("Duration: {} seconds", self.report.metadata.duration_seconds);
+        println!(
+            "Duration: {} seconds",
+            self.report.metadata.duration_seconds
+        );
         println!("Total Events: {}", self.report.metadata.total_events);
         println!("File Access: {}", self.report.summary.file_events);
         println!("Network Activity: {}", self.report.summary.network_events);
-        println!("Secret Access: {}", self.report.summary.secret_access_events);
+        println!(
+            "Secret Access: {}",
+            self.report.summary.secret_access_events
+        );
         println!("Memory Access: {}", self.report.summary.memory_events);
-        
+
         if self.report.summary.high_severity_events > 0 {
-            println!("⚠️  High Severity Events: {}", self.report.summary.high_severity_events);
+            println!(
+                "⚠️  High Severity Events: {}",
+                self.report.summary.high_severity_events
+            );
         } else {
             println!("✅ No high severity events detected");
         }
@@ -71,8 +79,12 @@ impl ReportGenerator {
 
         for event in &self.report.events {
             *process_stats.entry(event.command.clone()).or_insert(0) += 1;
-            *severity_breakdown.entry(event.severity.clone()).or_insert(0) += 1;
-            *event_type_breakdown.entry(event.event_type.clone()).or_insert(0) += 1;
+            *severity_breakdown
+                .entry(event.severity.clone())
+                .or_insert(0) += 1;
+            *event_type_breakdown
+                .entry(event.event_type.clone())
+                .or_insert(0) += 1;
         }
 
         ReportStats {
@@ -151,14 +163,30 @@ impl ReportGenerator {
 
     fn classify_file_severity(&self, filename: &str) -> String {
         let high_risk_patterns = [
-            "/etc/passwd", "/etc/shadow", "/etc/hosts", "/root/",
-            "/.ssh/", "/home/", "/.aws/", "/.gcp/", "/.azure/",
-            ".pem", ".key", ".crt", ".p12", ".pfx",
+            "/etc/passwd",
+            "/etc/shadow",
+            "/etc/hosts",
+            "/root/",
+            "/.ssh/",
+            "/home/",
+            "/.aws/",
+            "/.gcp/",
+            "/.azure/",
+            ".pem",
+            ".key",
+            ".crt",
+            ".p12",
+            ".pfx",
         ];
 
         let medium_risk_patterns = [
-            "/etc/", "/var/log/", "/proc/", "/sys/",
-            ".conf", ".config", ".env",
+            "/etc/",
+            "/var/log/",
+            "/proc/",
+            "/sys/",
+            ".conf",
+            ".config",
+            ".env",
         ];
 
         let filename_lower = filename.to_lowercase();
@@ -186,8 +214,11 @@ impl ReportGenerator {
             return "high".to_string();
         }
 
-        if dest_ip.starts_with("127.") || dest_ip.starts_with("10.") ||
-           dest_ip.starts_with("192.168.") || dest_ip.starts_with("172.") {
+        if dest_ip.starts_with("127.")
+            || dest_ip.starts_with("10.")
+            || dest_ip.starts_with("192.168.")
+            || dest_ip.starts_with("172.")
+        {
             return "low".to_string();
         }
 
@@ -230,7 +261,7 @@ impl ReportStats {
         println!("\n💻 Top Processes:");
         let mut sorted_processes: Vec<_> = self.process_stats.iter().collect();
         sorted_processes.sort_by(|a, b| b.1.cmp(a.1));
-        
+
         for (process, count) in sorted_processes.iter().take(10) {
             println!("  {}: {}", process, count);
         }
@@ -244,8 +275,9 @@ impl ReportStats {
 
 #[cfg(test)]
 mod tests {
+    use bee_trace_common::FileReadEvent;
+
     use super::*;
-    use bee_trace_common::{FileReadEvent, NetworkEvent, SecretAccessEvent, ProcessMemoryEvent};
 
     #[test]
     fn should_create_new_report_generator() {
@@ -258,15 +290,24 @@ mod tests {
     fn should_classify_high_risk_files() {
         let generator = ReportGenerator::new("test".to_string());
         assert_eq!(generator.classify_file_severity("/etc/passwd"), "high");
-        assert_eq!(generator.classify_file_severity("/root/.ssh/id_rsa"), "high");
-        assert_eq!(generator.classify_file_severity("/home/user/.aws/credentials"), "high");
+        assert_eq!(
+            generator.classify_file_severity("/root/.ssh/id_rsa"),
+            "high"
+        );
+        assert_eq!(
+            generator.classify_file_severity("/home/user/.aws/credentials"),
+            "high"
+        );
     }
 
     #[test]
     fn should_classify_medium_risk_files() {
         let generator = ReportGenerator::new("test".to_string());
-        assert_eq!(generator.classify_file_severity("/etc/hosts"), "high");  // Actually high risk
-        assert_eq!(generator.classify_file_severity("/var/log/auth.log"), "medium");
+        assert_eq!(generator.classify_file_severity("/etc/hosts"), "high"); // Actually high risk
+        assert_eq!(
+            generator.classify_file_severity("/var/log/auth.log"),
+            "medium"
+        );
         assert_eq!(generator.classify_file_severity("/proc/version"), "medium");
     }
 
@@ -280,25 +321,31 @@ mod tests {
     #[test]
     fn should_classify_network_severity() {
         let generator = ReportGenerator::new("test".to_string());
-        
-        assert_eq!(generator.classify_network_severity("192.168.1.1", 22), "high");
+
+        assert_eq!(
+            generator.classify_network_severity("192.168.1.1", 22),
+            "high"
+        );
         assert_eq!(generator.classify_network_severity("8.8.8.8", 22), "high");
         assert_eq!(generator.classify_network_severity("127.0.0.1", 80), "low");
-        assert_eq!(generator.classify_network_severity("8.8.8.8", 443), "medium");
+        assert_eq!(
+            generator.classify_network_severity("8.8.8.8", 443),
+            "medium"
+        );
     }
 
     #[test]
     fn should_add_and_track_events() {
         let mut generator = ReportGenerator::new("test".to_string());
-        
+
         let file_event = FileReadEvent::new()
             .with_pid(1234)
             .with_uid(1000)
             .with_command(b"cat")
             .with_filename(b"/etc/passwd");
-        
+
         generator.add_security_event(&SecurityEvent::FileRead(file_event));
-        
+
         assert_eq!(generator.report.metadata.total_events, 1);
         assert_eq!(generator.report.summary.file_events, 1);
     }
@@ -306,13 +353,13 @@ mod tests {
     #[test]
     fn should_calculate_stats() {
         let mut generator = ReportGenerator::new("test".to_string());
-        
+
         let file_event = FileReadEvent::new()
             .with_command(b"cat")
             .with_filename(b"/etc/passwd");
-        
+
         generator.add_security_event(&SecurityEvent::FileRead(file_event));
-        
+
         let stats = generator.get_stats();
         assert_eq!(stats.total_events, 1);
         assert_eq!(stats.process_stats.get("cat").unwrap(), &1);

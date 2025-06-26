@@ -34,7 +34,11 @@ unsafe fn try_tcp_connect(ctx: ProbeContext) -> Result<u32, i64> {
         uid: ctx.uid(),
         comm: ctx.command().unwrap_or_default(),
         dest_ip: [0u8; 16],
-        dest_port: sk_common.__bindgen_anon_3.__bindgen_anon_1.skc_dport.to_be(),
+        dest_port: sk_common
+            .__bindgen_anon_3
+            .__bindgen_anon_1
+            .skc_dport
+            .to_be(),
         protocol: 0, // TCP
         is_ipv6: if family == 10 { 1 } else { 0 },
         action: 0,
@@ -42,9 +46,16 @@ unsafe fn try_tcp_connect(ctx: ProbeContext) -> Result<u32, i64> {
 
     if family == 2 {
         // IPv4
-        let dest_ip = sk_common.__bindgen_anon_1.__bindgen_anon_1.skc_daddr.to_be_bytes();
+        let dest_ip = sk_common
+            .__bindgen_anon_1
+            .__bindgen_anon_1
+            .skc_daddr
+            .to_be_bytes();
         event.dest_ip[0..4].copy_from_slice(&dest_ip);
-        if BLOCKED_IPS.get(&sk_common.__bindgen_anon_1.__bindgen_anon_1.skc_daddr).is_some() {
+        if BLOCKED_IPS
+            .get(&sk_common.__bindgen_anon_1.__bindgen_anon_1.skc_daddr)
+            .is_some()
+        {
             event.action = 1;
         }
     } else if family == 10 {
@@ -76,7 +87,11 @@ unsafe fn try_udp_sendmsg(ctx: ProbeContext) -> Result<u32, i64> {
         uid: ctx.uid(),
         comm: ctx.command().unwrap_or_default(),
         dest_ip: [0u8; 16],
-        dest_port: sk_common.__bindgen_anon_3.__bindgen_anon_1.skc_dport.to_be(),
+        dest_port: sk_common
+            .__bindgen_anon_3
+            .__bindgen_anon_1
+            .skc_dport
+            .to_be(),
         protocol: 1, // UDP
         is_ipv6: if family == 10 { 1 } else { 0 },
         action: 0,
@@ -84,9 +99,16 @@ unsafe fn try_udp_sendmsg(ctx: ProbeContext) -> Result<u32, i64> {
 
     if family == 2 {
         // IPv4
-        let dest_ip = sk_common.__bindgen_anon_1.__bindgen_anon_1.skc_daddr.to_be_bytes();
+        let dest_ip = sk_common
+            .__bindgen_anon_1
+            .__bindgen_anon_1
+            .skc_daddr
+            .to_be_bytes();
         event.dest_ip[0..4].copy_from_slice(&dest_ip);
-        if BLOCKED_IPS.get(&sk_common.__bindgen_anon_1.__bindgen_anon_1.skc_daddr).is_some() {
+        if BLOCKED_IPS
+            .get(&sk_common.__bindgen_anon_1.__bindgen_anon_1.skc_daddr)
+            .is_some()
+        {
             event.action = 1;
         }
     } else if family == 10 {

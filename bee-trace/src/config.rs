@@ -2,7 +2,7 @@ use std::{fs, net::IpAddr, path::Path};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     #[serde(default)]
     pub monitoring: MonitoringConfig,
@@ -12,7 +12,7 @@ pub struct Config {
     pub security: SecurityConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MonitoringConfig {
     pub default_duration_seconds: Option<u64>,
     pub security_mode: Option<bool>,
@@ -22,14 +22,14 @@ pub struct MonitoringConfig {
     pub cpu_limit: Option<u8>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct OutputConfig {
     pub verbose: Option<bool>,
     pub format: Option<String>,
     pub no_header: Option<bool>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SecurityConfig {
     #[serde(default)]
     pub network: NetworkConfig,
@@ -37,72 +37,16 @@ pub struct SecurityConfig {
     pub files: FileConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NetworkConfig {
     #[serde(default)]
     pub block: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct FileConfig {
     #[serde(default)]
     pub watch_read: Vec<String>,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            monitoring: MonitoringConfig::default(),
-            output: OutputConfig::default(),
-            security: SecurityConfig::default(),
-        }
-    }
-}
-
-impl Default for MonitoringConfig {
-    fn default() -> Self {
-        Self {
-            default_duration_seconds: None,
-            security_mode: None,
-            min_severity: None,
-            exclude_pids: None,
-            include_pids: None,
-            cpu_limit: None,
-        }
-    }
-}
-
-impl Default for OutputConfig {
-    fn default() -> Self {
-        Self {
-            verbose: None,
-            format: None,
-            no_header: None,
-        }
-    }
-}
-
-impl Default for SecurityConfig {
-    fn default() -> Self {
-        Self {
-            network: NetworkConfig::default(),
-            files: FileConfig::default(),
-        }
-    }
-}
-
-impl Default for NetworkConfig {
-    fn default() -> Self {
-        Self { block: Vec::new() }
-    }
-}
-
-impl Default for FileConfig {
-    fn default() -> Self {
-        Self {
-            watch_read: Vec::new(),
-        }
-    }
 }
 
 impl Config {
@@ -171,16 +115,13 @@ impl SecurityConfig {
         }
 
         // Handle extension patterns like "*.pem"
-        if pattern.starts_with("*.") {
-            let extension = &pattern[2..];
+        if let Some(extension) = pattern.strip_prefix("*.") {
             return path.ends_with(&format!(".{}", extension));
         }
 
         // Handle recursive patterns like "**/*.pem"
-        if pattern.starts_with("**/") {
-            let suffix = &pattern[3..];
-            if suffix.starts_with("*.") {
-                let extension = &suffix[2..];
+        if let Some(suffix) = pattern.strip_prefix("**/") {
+            if let Some(extension) = suffix.strip_prefix("*.") {
                 return path.ends_with(&format!(".{}", extension));
             } else {
                 return path.ends_with(suffix) || path.contains(&format!("/{}", suffix));
@@ -188,8 +129,7 @@ impl SecurityConfig {
         }
 
         // Handle directory patterns like "/etc/ssl/**"
-        if pattern.ends_with("/**") {
-            let prefix = &pattern[..pattern.len() - 3];
+        if let Some(prefix) = pattern.strip_suffix("/**") {
             return path.starts_with(prefix);
         }
 
@@ -208,8 +148,7 @@ impl SecurityConfig {
         }
 
         // Wildcard subdomain match like "*.example.com"
-        if pattern.starts_with("*.") {
-            let base_domain = &pattern[2..];
+        if let Some(base_domain) = pattern.strip_prefix("*.") {
             return domain.ends_with(base_domain) && domain != base_domain;
         }
 

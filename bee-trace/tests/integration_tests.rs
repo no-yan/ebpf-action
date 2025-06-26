@@ -7,7 +7,7 @@ mod cli_argument_parsing {
 
     #[test]
     fn should_parse_default_arguments() {
-        let args = Args::try_parse_from(&["bee-trace"]).unwrap();
+        let args = Args::try_parse_from(["bee-trace"]).unwrap();
 
         assert_eq!(args.probe_type, "vfs_read");
         assert_eq!(args.duration, None);
@@ -19,63 +19,63 @@ mod cli_argument_parsing {
 
     #[test]
     fn should_parse_probe_type_argument() {
-        let args = Args::try_parse_from(&["bee-trace", "--probe-type", "sys_enter_read"]).unwrap();
+        let args = Args::try_parse_from(["bee-trace", "--probe-type", "sys_enter_read"]).unwrap();
 
         assert_eq!(args.probe_type, "sys_enter_read");
     }
 
     #[test]
     fn should_parse_short_probe_type_argument() {
-        let args = Args::try_parse_from(&["bee-trace", "-p", "sys_enter_read"]).unwrap();
+        let args = Args::try_parse_from(["bee-trace", "-p", "sys_enter_read"]).unwrap();
 
         assert_eq!(args.probe_type, "sys_enter_read");
     }
 
     #[test]
     fn should_parse_duration_argument() {
-        let args = Args::try_parse_from(&["bee-trace", "--duration", "30"]).unwrap();
+        let args = Args::try_parse_from(["bee-trace", "--duration", "30"]).unwrap();
 
         assert_eq!(args.duration, Some(30));
     }
 
     #[test]
     fn should_parse_short_duration_argument() {
-        let args = Args::try_parse_from(&["bee-trace", "-d", "60"]).unwrap();
+        let args = Args::try_parse_from(["bee-trace", "-d", "60"]).unwrap();
 
         assert_eq!(args.duration, Some(60));
     }
 
     #[test]
     fn should_parse_command_filter_argument() {
-        let args = Args::try_parse_from(&["bee-trace", "--command", "cat"]).unwrap();
+        let args = Args::try_parse_from(["bee-trace", "--command", "cat"]).unwrap();
 
         assert_eq!(args.command, Some("cat".to_string()));
     }
 
     #[test]
     fn should_parse_short_command_filter_argument() {
-        let args = Args::try_parse_from(&["bee-trace", "-c", "vim"]).unwrap();
+        let args = Args::try_parse_from(["bee-trace", "-c", "vim"]).unwrap();
 
         assert_eq!(args.command, Some("vim".to_string()));
     }
 
     #[test]
     fn should_parse_verbose_flag() {
-        let args = Args::try_parse_from(&["bee-trace", "--verbose"]).unwrap();
+        let args = Args::try_parse_from(["bee-trace", "--verbose"]).unwrap();
 
         assert!(args.verbose);
     }
 
     #[test]
     fn should_parse_short_verbose_flag() {
-        let args = Args::try_parse_from(&["bee-trace", "-v"]).unwrap();
+        let args = Args::try_parse_from(["bee-trace", "-v"]).unwrap();
 
         assert!(args.verbose);
     }
 
     #[test]
     fn should_parse_all_arguments_together() {
-        let args = Args::try_parse_from(&[
+        let args = Args::try_parse_from([
             "bee-trace",
             "--probe-type",
             "sys_enter_read",
@@ -95,21 +95,21 @@ mod cli_argument_parsing {
 
     #[test]
     fn should_fail_on_invalid_duration() {
-        let result = Args::try_parse_from(&["bee-trace", "--duration", "not-a-number"]);
+        let result = Args::try_parse_from(["bee-trace", "--duration", "not-a-number"]);
 
         assert!(result.is_err());
     }
 
     #[test]
     fn should_fail_on_unknown_argument() {
-        let result = Args::try_parse_from(&["bee-trace", "--unknown-flag"]);
+        let result = Args::try_parse_from(["bee-trace", "--unknown-flag"]);
 
         assert!(result.is_err());
     }
 
     #[test]
     fn should_show_help_text() {
-        let result = Args::try_parse_from(&["bee-trace", "--help"]);
+        let result = Args::try_parse_from(["bee-trace", "--help"]);
 
         // Should fail with help text (clap exits with error code 0 for help)
         assert!(result.is_err());
@@ -129,7 +129,7 @@ mod end_to_end_scenarios {
 
     #[test]
     fn should_process_valid_event_without_filters() {
-        let args = Args::try_parse_from(&["bee-trace"]).unwrap();
+        let args = Args::try_parse_from(["bee-trace"]).unwrap();
         let formatter = EventFormatter::new(args.verbose);
         let event = create_test_event();
 
@@ -143,7 +143,7 @@ mod end_to_end_scenarios {
 
     #[test]
     fn should_filter_event_by_command() {
-        let args = Args::try_parse_from(&["bee-trace", "--command", "vim"]).unwrap();
+        let args = Args::try_parse_from(["bee-trace", "--command", "vim"]).unwrap();
         let event = create_test_event(); // has "cat" command
 
         assert!(!args.should_filter_event(&event));
@@ -151,7 +151,7 @@ mod end_to_end_scenarios {
 
     #[test]
     fn should_allow_matching_command() {
-        let args = Args::try_parse_from(&["bee-trace", "--command", "cat"]).unwrap();
+        let args = Args::try_parse_from(["bee-trace", "--command", "cat"]).unwrap();
         let event = create_test_event();
 
         assert!(args.should_filter_event(&event));
@@ -159,7 +159,7 @@ mod end_to_end_scenarios {
 
     #[test]
     fn should_hide_empty_events_in_normal_mode() {
-        let args = Args::try_parse_from(&["bee-trace"]).unwrap();
+        let args = Args::try_parse_from(["bee-trace"]).unwrap();
         let empty_event = FileReadEvent::new();
 
         assert!(!args.should_show_event(&empty_event));
@@ -167,7 +167,7 @@ mod end_to_end_scenarios {
 
     #[test]
     fn should_show_empty_events_in_verbose_mode() {
-        let args = Args::try_parse_from(&["bee-trace", "--verbose"]).unwrap();
+        let args = Args::try_parse_from(["bee-trace", "--verbose"]).unwrap();
         let empty_event = FileReadEvent::new();
 
         assert!(args.should_show_event(&empty_event));
@@ -233,7 +233,7 @@ mod complex_filtering_scenarios {
 
     #[test]
     fn should_handle_partial_command_matches() {
-        let args = Args::try_parse_from(&["bee-trace", "--command", "cat"]).unwrap();
+        let args = Args::try_parse_from(["bee-trace", "--command", "cat"]).unwrap();
 
         let exact_match = FileReadEvent::new().with_command(b"cat");
         let partial_match = FileReadEvent::new().with_command(b"concatenate");
@@ -246,8 +246,8 @@ mod complex_filtering_scenarios {
 
     #[test]
     fn should_handle_events_with_empty_filename() {
-        let normal_args = Args::try_parse_from(&["bee-trace"]).unwrap();
-        let verbose_args = Args::try_parse_from(&["bee-trace", "--verbose"]).unwrap();
+        let normal_args = Args::try_parse_from(["bee-trace"]).unwrap();
+        let verbose_args = Args::try_parse_from(["bee-trace", "--verbose"]).unwrap();
 
         let empty_filename_event = FileReadEvent::new();
 
@@ -257,7 +257,7 @@ mod complex_filtering_scenarios {
 
     #[test]
     fn should_combine_command_filter_and_visibility_rules() {
-        let args = Args::try_parse_from(&["bee-trace", "--command", "cat"]).unwrap();
+        let args = Args::try_parse_from(["bee-trace", "--command", "cat"]).unwrap();
 
         // Event matches command but has empty filename (should be filtered out)
         let filtered_event = FileReadEvent::new().with_command(b"cat");

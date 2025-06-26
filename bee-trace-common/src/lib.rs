@@ -803,7 +803,7 @@ mod tests {
         fn should_be_copy_and_clone() {
             let event = FileReadEvent::new().with_pid(123);
             let copied = event;
-            let cloned = event.clone();
+            let cloned = event;
 
             assert_eq!(copied.pid, 123);
             assert_eq!(cloned.pid, 123);

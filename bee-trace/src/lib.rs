@@ -2,8 +2,8 @@ use bee_trace_common::{FileReadEvent, NetworkEvent, ProcessMemoryEvent, SecretAc
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 
-pub mod config;
 pub mod cli;
+pub mod config;
 pub mod report;
 
 #[derive(Clone)]
@@ -201,8 +201,8 @@ impl SecurityReport {
 
         // Summary
         md.push_str("## Summary\n\n");
-        md.push_str(&format!("| Event Type | Count |\n"));
-        md.push_str(&format!("|------------|-------|\n"));
+        md.push_str("| Event Type | Count |\n");
+        md.push_str("|------------|-------|\n");
         md.push_str(&format!("| File Access | {} |\n", self.summary.file_events));
         md.push_str(&format!(
             "| Network Activity | {} |\n",
@@ -258,7 +258,7 @@ impl SecurityReport {
                         event.details
                     ));
                 }
-                md.push_str("\n");
+                md.push('\n');
             }
 
             if !medium_severity.is_empty() {
@@ -276,7 +276,7 @@ impl SecurityReport {
                         medium_severity.len() - 10
                     ));
                 }
-                md.push_str("\n");
+                md.push('\n');
             }
 
             if !low_severity.is_empty() {

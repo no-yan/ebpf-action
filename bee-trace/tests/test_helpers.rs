@@ -10,6 +10,12 @@ pub struct FileReadEventBuilder {
     event: FileReadEvent,
 }
 
+impl Default for FileReadEventBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FileReadEventBuilder {
     pub fn new() -> Self {
         Self {
@@ -382,7 +388,7 @@ pub mod performance {
 
     pub struct PerformanceTest {
         pub name: &'static str,
-        pub operation: Box<dyn Fn() -> ()>,
+        pub operation: Box<dyn Fn()>,
         pub iterations: usize,
         pub max_duration: Duration,
     }
@@ -456,6 +462,12 @@ pub mod generators {
         pid_counter: u32,
         commands: VecDeque<&'static str>,
         paths: VecDeque<&'static str>,
+    }
+
+    impl Default for EventGenerator {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl EventGenerator {

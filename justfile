@@ -119,6 +119,13 @@ create-security-config:
     @mkdir -p .github
     @cp .github/security.yml .github/security-example.yml || echo "Security config already exists"
 
+# Git hooks and development workflow
+setup-hooks:
+    lefthook install
+    @echo "✅ Git hooks installed successfully"
+    @echo "Pre-commit hooks will run: format check, lint, test, build"
+    @echo "Pre-push hooks will run: release build, security audit"
+
 # Clean commands
 clean:
     cargo clean
