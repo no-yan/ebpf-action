@@ -1,6 +1,8 @@
 use bee_trace_common::FileReadEvent;
 use clap::Parser;
 
+pub mod config;
+
 #[derive(Debug, Clone, Parser)]
 #[clap(name = "bee-trace", about = "eBPF file reading monitor")]
 pub struct Args {

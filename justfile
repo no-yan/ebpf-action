@@ -2,13 +2,13 @@ default:
     @just --list
 
 build:
-    cargo build
+    cargo +nightly build
 
 build-release:
-    cargo build --release
+    cargo +nightly build --release
 
 check:
-    cargo check
+    cargo +nightly check
 
 fmt:
     cargo +nightly fmt
