@@ -37,7 +37,6 @@ async fn main() -> anyhow::Result<()> {
         debug!("remove limit on locked memory failed, ret is: {ret}");
     }
 
-    // Load the eBPF program
     let mut ebpf = Ebpf::load(aya::include_bytes_aligned!(concat!(
         env!("OUT_DIR"),
         "/bee-trace"
@@ -146,7 +145,7 @@ async fn main() -> anyhow::Result<()> {
         match timeout(Duration::from_secs(duration), event_processor).await {
             Ok(_) => {}
             Err(_) => println!("\nTracing completed after {} seconds", duration),
-        }
+        }   
     } else {
         tokio::select! {
             _ = event_processor => {},

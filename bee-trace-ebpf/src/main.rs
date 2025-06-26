@@ -1,14 +1,7 @@
 #![no_std]
 #![no_main]
 
-use aya_ebpf::{macros::socket_filter, programs::SkBuffContext};
-pub use lsm::*;
 mod lsm;
-
-#[socket_filter]
-pub fn bee_trace(_ctx: SkBuffContext) -> i64 {
-    0
-}
 
 #[cfg(not(test))]
 #[panic_handler]
