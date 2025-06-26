@@ -3,7 +3,6 @@
 //! This module provides reusable test utilities that make tests more readable,
 //! maintainable, and focused on behavior rather than implementation details.
 
-
 use bee_trace_common::FileReadEvent;
 
 /// Builder for creating test FileReadEvent instances with fluent API
@@ -37,7 +36,6 @@ impl FileReadEventBuilder {
         self.event = self.event.with_filename(filename.as_bytes());
         self
     }
-
 
     pub fn build(self) -> FileReadEvent {
         self.event
@@ -243,7 +241,7 @@ pub mod scenarios {
                 events::editor_opening_config(),      // Should fail: wrong command
                 FileReadEventBuilder::new() // Should fail: matches command but empty
                     .command("cat")
-                            .build(),
+                    .build(),
                 FileReadEventBuilder::new() // Should pass: partial match + valid
                     .command("concatenate")
                     .filename("/tmp/test")

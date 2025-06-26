@@ -260,8 +260,7 @@ mod complex_filtering_scenarios {
         // Event matches command and has valid data
         let visible_event = FileReadEvent::new()
             .with_command(b"cat")
-            .with_filename(b"/etc/passwd")
-;
+            .with_filename(b"/etc/passwd");
 
         assert!(args.should_filter_event(&visible_event));
         assert!(args.should_show_event(&visible_event));
@@ -279,8 +278,7 @@ mod output_formatting_edge_cases {
         let event = FileReadEvent::new()
             .with_pid(1234)
             .with_command(b"cat")
-            .with_filename(long_filename.as_bytes())
-;
+            .with_filename(long_filename.as_bytes());
 
         let formatted = formatter.format_event(&event);
         assert!(formatted.contains("..."));
@@ -295,8 +293,7 @@ mod output_formatting_edge_cases {
         let event = FileReadEvent::new()
             .with_pid(1234)
             .with_command(b"cat")
-            .with_filename(boundary_filename.as_bytes())
-;
+            .with_filename(boundary_filename.as_bytes());
 
         let formatted = formatter.format_event(&event);
         assert!(!formatted.contains("...")); // Should not truncate
@@ -311,12 +308,11 @@ mod output_formatting_edge_cases {
         let event = FileReadEvent::new()
             .with_pid(1234)
             .with_command(b"cat")
-            .with_filename(long_filename.as_bytes())
-;
+            .with_filename(long_filename.as_bytes());
 
         let formatted = formatter.format_event(&event);
         assert!(!formatted.contains("...")); // Verbose mode shows full filename
-        // Since filename is truncated to 64 bytes in the struct, check for that much
+                                             // Since filename is truncated to 64 bytes in the struct, check for that much
         let expected_filename = &long_filename[..64];
         assert!(formatted.contains(expected_filename));
     }
@@ -345,14 +341,12 @@ mod output_formatting_edge_cases {
         let short_event = FileReadEvent::new()
             .with_pid(1)
             .with_command(b"x")
-            .with_filename(b"/a")
-;
+            .with_filename(b"/a");
 
         let long_event = FileReadEvent::new()
             .with_pid(999999)
             .with_command(b"very_long_command")
-            .with_filename(b"/very/long/path/to/file")
-;
+            .with_filename(b"/very/long/path/to/file");
 
         let short_formatted = formatter.format_event(&short_event);
         let long_formatted = formatter.format_event(&long_event);

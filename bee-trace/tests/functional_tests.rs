@@ -255,12 +255,10 @@ mod event_stream_processing {
             create_cat_reading_passwd(), // Should pass: matches command + valid
             create_vim_reading_config(), // Should fail: wrong command
             FileReadEvent::new() // Should fail: matches no command filter but empty
-                .with_command(b"cat")
-,
+                .with_command(b"cat"),
             FileReadEvent::new() // Should pass: matches command + valid
                 .with_command(b"concatenate")
-                .with_filename(b"/tmp/test")
-,
+                .with_filename(b"/tmp/test"),
         ];
 
         for event in &events {
@@ -443,8 +441,7 @@ mod edge_case_handling {
         let unicode_event = FileReadEvent::new()
             .with_pid(1234)
             .with_command(b"cat")
-            .with_filename("🦀/rust/file.rs".as_bytes())
-;
+            .with_filename("🦀/rust/file.rs".as_bytes());
 
         processor.process_event(&unicode_event, &args, &formatter);
 

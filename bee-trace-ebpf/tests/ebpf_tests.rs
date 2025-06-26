@@ -85,7 +85,6 @@ mod ebpf_data_validation {
         assert_eq!(event.uid, u32::MAX);
     }
 
-
     #[test]
     fn should_handle_filename_length_consistency() {
         // filename_len should always match the actual data
@@ -215,8 +214,7 @@ mod ebpf_performance_characteristics {
         // Operations should be efficient for high-frequency tracing
         let event = FileReadEvent::new()
             .with_pid(1234)
-            .with_filename(b"/etc/passwd")
-;
+            .with_filename(b"/etc/passwd");
 
         // Copy operations should be fast (compile-time check)
         let _copy1 = event;

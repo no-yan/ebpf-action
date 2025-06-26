@@ -1,12 +1,11 @@
-use aya_ebpf::EbpfContext;
 use aya_ebpf::{
     macros::{kprobe, map, tracepoint},
     maps::PerfEventArray,
     programs::{ProbeContext, TracePointContext},
+    EbpfContext,
 };
-use bee_trace_common::FileReadEvent;
-
 use bee_trace_bindings::file;
+use bee_trace_common::FileReadEvent;
 
 #[map]
 static FILE_READ_EVENTS: PerfEventArray<FileReadEvent> = PerfEventArray::new(0);

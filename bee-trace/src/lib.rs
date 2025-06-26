@@ -57,10 +57,7 @@ impl EventFormatter {
                 "PID", "UID", "COMMAND", "FILENAME"
             )
         } else {
-            format!(
-                "{:<8} {:<16} {:<48}",
-                "PID", "COMMAND", "FILENAME"
-            )
+            format!("{:<8} {:<16} {:<48}", "PID", "COMMAND", "FILENAME")
         }
     }
 
