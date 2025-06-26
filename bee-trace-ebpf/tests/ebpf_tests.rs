@@ -14,7 +14,7 @@ mod ebpf_program_structure {
     fn should_have_correct_event_structure_size() {
         // Verify that our event structure is the expected size
         // This is critical for BPF stack usage and perf event compatibility
-        assert_eq!(core::mem::size_of::<FileReadEvent>(), 96);
+        assert_eq!(core::mem::size_of::<FileReadEvent>(), 88);
     }
 
     #[test]
@@ -37,7 +37,6 @@ mod ebpf_program_structure {
             uid: 1000,
             filename: [0u8; 64],
             filename_len: 0,
-            bytes_read: 512,
             comm: [0u8; 16],
         };
     }
@@ -86,16 +85,6 @@ mod ebpf_data_validation {
         assert_eq!(event.uid, u32::MAX);
     }
 
-    #[test]
-    fn should_validate_bytes_read_ranges() {
-        // bytes_read should handle the full u64 range
-        let event = FileReadEvent::new()
-            .with_bytes_read(0)
-            .with_bytes_read(1024)
-            .with_bytes_read(u64::MAX);
-
-        assert_eq!(event.bytes_read, u64::MAX);
-    }
 
     #[test]
     fn should_handle_filename_length_consistency() {
@@ -168,8 +157,7 @@ mod ebpf_memory_safety {
         // This is important for kernel/userspace communication
         let event = FileReadEvent::new()
             .with_pid(0x12345678)
-            .with_uid(0x87654321)
-            .with_bytes_read(0x1234567890ABCDEF);
+            .with_uid(0x87654321);
 
         // Cast to bytes and check layout
         let bytes = unsafe {
@@ -191,7 +179,6 @@ mod ebpf_memory_safety {
         // Test that we can safely cast between types for zero-copy operations
         let mut event = FileReadEvent::new();
         event.pid = 1234;
-        event.bytes_read = 5678;
 
         // Should be able to safely transmute or cast
         let bytes = unsafe {
@@ -205,7 +192,6 @@ mod ebpf_memory_safety {
         let reconstructed = unsafe { *(bytes.as_ptr() as *const FileReadEvent) };
 
         assert_eq!(reconstructed.pid, 1234);
-        assert_eq!(reconstructed.bytes_read, 5678);
     }
 }
 
@@ -230,7 +216,7 @@ mod ebpf_performance_characteristics {
         let event = FileReadEvent::new()
             .with_pid(1234)
             .with_filename(b"/etc/passwd")
-            .with_bytes_read(1024);
+;
 
         // Copy operations should be fast (compile-time check)
         let _copy1 = event;

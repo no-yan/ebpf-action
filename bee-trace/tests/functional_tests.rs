@@ -51,7 +51,6 @@ mod test_event_factory {
             .with_uid(1000)
             .with_command(b"cat")
             .with_filename(b"/etc/passwd")
-            .with_bytes_read(1024)
     }
 
     pub fn create_vim_reading_config() -> FileReadEvent {
@@ -60,7 +59,6 @@ mod test_event_factory {
             .with_uid(1001)
             .with_command(b"vim")
             .with_filename(b"/home/user/.vimrc")
-            .with_bytes_read(2048)
     }
 
     pub fn create_empty_read() -> FileReadEvent {
@@ -69,7 +67,6 @@ mod test_event_factory {
             .with_uid(1000)
             .with_command(b"test")
             .with_filename(b"/tmp/empty")
-            .with_bytes_read(0)
     }
 
     pub fn create_no_filename() -> FileReadEvent {
@@ -77,7 +74,6 @@ mod test_event_factory {
             .with_pid(1111)
             .with_uid(1000)
             .with_command(b"mystery")
-            .with_bytes_read(512)
     }
 
     pub fn create_large_file_read() -> FileReadEvent {
@@ -87,7 +83,6 @@ mod test_event_factory {
             .with_uid(1000)
             .with_command(b"bigfilehandler")
             .with_filename(long_path.as_bytes())
-            .with_bytes_read(1048576) // 1MB
     }
 
     pub fn create_system_process() -> FileReadEvent {
@@ -96,7 +91,6 @@ mod test_event_factory {
             .with_uid(0)
             .with_command(b"init")
             .with_filename(b"/proc/version")
-            .with_bytes_read(256)
     }
 }
 
@@ -185,7 +179,7 @@ mod event_stream_processing {
         }
 
         let processed = processor.get_processed_events();
-        assert_eq!(processed.len(), 1); // Only the valid cat event
+        assert_eq!(processed.len(), 2); // cat and empty_read events (both have filenames)
         assert!(processed[0].contains("cat"));
     }
 
@@ -262,11 +256,11 @@ mod event_stream_processing {
             create_vim_reading_config(), // Should fail: wrong command
             FileReadEvent::new() // Should fail: matches no command filter but empty
                 .with_command(b"cat")
-                .with_bytes_read(0),
+,
             FileReadEvent::new() // Should pass: matches command + valid
                 .with_command(b"concatenate")
                 .with_filename(b"/tmp/test")
-                .with_bytes_read(100),
+,
         ];
 
         for event in &events {
@@ -388,7 +382,6 @@ mod edge_case_handling {
         let max_event = FileReadEvent::new()
             .with_pid(u32::MAX)
             .with_uid(u32::MAX)
-            .with_bytes_read(u64::MAX)
             .with_command(b"maxcmd")
             .with_filename(b"/max/path");
 
@@ -399,7 +392,6 @@ mod edge_case_handling {
 
         let output = &processed[0];
         assert!(output.contains(&u32::MAX.to_string()));
-        assert!(output.contains(&u64::MAX.to_string()));
     }
 
     #[test]
@@ -452,7 +444,7 @@ mod edge_case_handling {
             .with_pid(1234)
             .with_command(b"cat")
             .with_filename("🦀/rust/file.rs".as_bytes())
-            .with_bytes_read(512);
+;
 
         processor.process_event(&unicode_event, &args, &formatter);
 

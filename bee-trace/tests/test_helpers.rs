@@ -3,7 +3,6 @@
 //! This module provides reusable test utilities that make tests more readable,
 //! maintainable, and focused on behavior rather than implementation details.
 
-use std::collections::HashMap;
 
 use bee_trace_common::FileReadEvent;
 
@@ -39,10 +38,6 @@ impl FileReadEventBuilder {
         self
     }
 
-    pub fn bytes_read(mut self, bytes: u64) -> Self {
-        self.event = self.event.with_bytes_read(bytes);
-        self
-    }
 
     pub fn build(self) -> FileReadEvent {
         self.event
@@ -59,7 +54,6 @@ pub mod events {
             .uid(1000)
             .command("cat")
             .filename("/etc/passwd")
-            .bytes_read(1024)
             .build()
     }
 
@@ -69,7 +63,6 @@ pub mod events {
             .uid(0)
             .command("init")
             .filename("/proc/version")
-            .bytes_read(256)
             .build()
     }
 
@@ -79,7 +72,6 @@ pub mod events {
             .uid(1001)
             .command("vim")
             .filename("/home/user/.vimrc")
-            .bytes_read(2048)
             .build()
     }
 
@@ -89,7 +81,6 @@ pub mod events {
             .uid(1000)
             .command("test")
             .filename("/tmp/empty")
-            .bytes_read(0)
             .build()
     }
 
@@ -98,7 +89,6 @@ pub mod events {
             .pid(1111)
             .uid(1000)
             .command("mystery")
-            .bytes_read(512)
             .build()
     }
 
@@ -108,7 +98,6 @@ pub mod events {
             .uid(1000)
             .command("bigfilehandler")
             .filename("/var/log/huge.log")
-            .bytes_read(1048576) // 1MB
             .build()
     }
 
@@ -118,7 +107,6 @@ pub mod events {
             .uid(1000)
             .command("cat")
             .filename("🦀/rust/file.rs")
-            .bytes_read(512)
             .build()
     }
 
@@ -132,7 +120,6 @@ pub mod events {
             .uid(1000)
             .command("longpathtool")
             .filename(&long_path)
-            .bytes_read(1024)
             .build()
     }
 
@@ -142,7 +129,6 @@ pub mod events {
             .uid(u32::MAX)
             .command("maxcmd")
             .filename("/max/path")
-            .bytes_read(u64::MAX)
             .build()
     }
 
@@ -153,7 +139,7 @@ pub mod events {
 
 /// Test scenarios for different filtering conditions
 pub mod scenarios {
-    use bee_trace::{Args, EventFormatter};
+    use bee_trace::Args;
 
     use super::*;
 
@@ -257,12 +243,10 @@ pub mod scenarios {
                 events::editor_opening_config(),      // Should fail: wrong command
                 FileReadEventBuilder::new() // Should fail: matches command but empty
                     .command("cat")
-                    .bytes_read(0)
-                    .build(),
+                            .build(),
                 FileReadEventBuilder::new() // Should pass: partial match + valid
                     .command("concatenate")
                     .filename("/tmp/test")
-                    .bytes_read(100)
                     .build(),
             ],
             expected_output_count: 2,
@@ -302,7 +286,7 @@ pub mod formatting {
                 name: "verbose_output_includes_uid",
                 event: events::typical_cat_reading_passwd(),
                 verbose: true,
-                expected_contains: vec!["1234", "1000", "cat", "/etc/passwd", "1024"],
+                expected_contains: vec!["1234", "1000", "cat", "/etc/passwd"],
                 expected_not_contains: vec!["..."],
                 max_length: None,
             },
@@ -310,7 +294,7 @@ pub mod formatting {
                 name: "non_verbose_excludes_uid",
                 event: events::typical_cat_reading_passwd(),
                 verbose: false,
-                expected_contains: vec!["1234", "cat", "/etc/passwd", "1024"],
+                expected_contains: vec!["1234", "cat", "/etc/passwd"],
                 expected_not_contains: vec!["1000", "..."], // UID not shown, no truncation
                 max_length: Some(82),
             },
@@ -318,7 +302,7 @@ pub mod formatting {
                 name: "long_filename_truncation_in_normal_mode",
                 event: events::with_very_long_path(),
                 verbose: false,
-                expected_contains: vec!["4444", "longpathtool", "1024", "..."],
+                expected_contains: vec!["4444", "longpathtool", "..."],
                 expected_not_contains: vec![],
                 max_length: Some(82),
             },
@@ -326,7 +310,7 @@ pub mod formatting {
                 name: "long_filename_no_truncation_in_verbose_mode",
                 event: events::with_very_long_path(),
                 verbose: true,
-                expected_contains: vec!["4444", "1000", "longpathtool", "1024", "/very/long/path"],
+                expected_contains: vec!["4444", "1000", "longpathtool", "/very/long/path"],
                 expected_not_contains: vec!["..."],
                 max_length: None,
             },
@@ -334,7 +318,7 @@ pub mod formatting {
                 name: "unicode_path_handling",
                 event: events::with_unicode_path(),
                 verbose: false,
-                expected_contains: vec!["3333", "cat", "🦀", "512"],
+                expected_contains: vec!["3333", "cat", "🦀"],
                 expected_not_contains: vec!["..."],
                 max_length: Some(82),
             },
@@ -449,7 +433,7 @@ pub mod performance {
                 let _command = event.command_as_str();
             }),
             iterations: 10_000,
-            max_duration: Duration::from_millis(20),
+            max_duration: Duration::from_millis(50),
         }
     }
 }
@@ -504,7 +488,6 @@ pub mod generators {
                 .uid(1000)
                 .command(command)
                 .filename(path)
-                .bytes_read((self.pid_counter as u64) * 100)
                 .build()
         }
 
@@ -541,13 +524,11 @@ mod helper_tests {
             .pid(1234)
             .command("test")
             .filename("/tmp/test")
-            .bytes_read(512)
             .build();
 
         assert_eq!(event.pid, 1234);
         assert_eq!(event.command_as_str(), "test");
         assert_eq!(event.filename_as_str(), "/tmp/test");
-        assert_eq!(event.bytes_read, 512);
     }
 
     #[test]

@@ -34,7 +34,7 @@ impl Args {
     }
 
     pub fn should_show_event(&self, event: &FileReadEvent) -> bool {
-        if !self.verbose && (event.filename_as_str().is_empty() || event.bytes_read == 0) {
+        if !self.verbose && (event.filename_as_str().is_empty()) {
             return false;
         }
         true
@@ -53,13 +53,13 @@ impl EventFormatter {
     pub fn header(&self) -> String {
         if self.verbose {
             format!(
-                "{:<8} {:<8} {:<16} {:<10} {:<64}",
-                "PID", "UID", "COMMAND", "BYTES", "FILENAME"
+                "{:<8} {:<8} {:<16} {:<64}",
+                "PID", "UID", "COMMAND", "FILENAME"
             )
         } else {
             format!(
-                "{:<8} {:<16} {:<10} {:<48}",
-                "PID", "COMMAND", "BYTES", "FILENAME"
+                "{:<8} {:<16} {:<48}",
+                "PID", "COMMAND", "FILENAME"
             )
         }
     }
@@ -68,7 +68,7 @@ impl EventFormatter {
         if self.verbose {
             "-".repeat(106)
         } else {
-            "-".repeat(82)
+            "-".repeat(74)
         }
     }
 
@@ -78,8 +78,8 @@ impl EventFormatter {
 
         if self.verbose {
             format!(
-                "{:<8} {:<8} {:<16} {:<10} {:<64}",
-                event.pid, event.uid, comm, event.bytes_read, filename
+                "{:<8} {:<8} {:<16} {:<64}",
+                event.pid, event.uid, comm, filename
             )
         } else {
             let truncated_filename = if filename.len() > 48 {
@@ -87,10 +87,7 @@ impl EventFormatter {
             } else {
                 filename.to_string()
             };
-            format!(
-                "{:<8} {:<16} {:<10} {:<48}",
-                event.pid, comm, event.bytes_read, truncated_filename
-            )
+            format!("{:<8} {:<16} {:<48}", event.pid, comm, truncated_filename)
         }
     }
 }
@@ -220,9 +217,7 @@ mod tests {
             let empty_event = FileReadEvent::new();
             assert!(args.should_show_event(&empty_event));
 
-            let zero_bytes_event = FileReadEvent::new()
-                .with_filename(b"/etc/passwd")
-                .with_bytes_read(0);
+            let zero_bytes_event = FileReadEvent::new().with_filename(b"/etc/passwd");
             assert!(args.should_show_event(&zero_bytes_event));
         }
 
@@ -235,13 +230,11 @@ mod tests {
                 verbose: false,
             };
 
-            let empty_filename_event = FileReadEvent::new().with_bytes_read(100);
+            let empty_filename_event = FileReadEvent::new();
             assert!(!args.should_show_event(&empty_filename_event));
 
-            let zero_bytes_event = FileReadEvent::new()
-                .with_filename(b"/etc/passwd")
-                .with_bytes_read(0);
-            assert!(!args.should_show_event(&zero_bytes_event));
+            let valid_event = FileReadEvent::new().with_filename(b"/etc/passwd");
+            assert!(args.should_show_event(&valid_event));
         }
 
         #[test]
@@ -253,9 +246,7 @@ mod tests {
                 verbose: false,
             };
 
-            let valid_event = FileReadEvent::new()
-                .with_filename(b"/etc/passwd")
-                .with_bytes_read(100);
+            let valid_event = FileReadEvent::new().with_filename(b"/etc/passwd");
             assert!(args.should_show_event(&valid_event));
         }
     }
@@ -271,7 +262,6 @@ mod tests {
             assert!(header.contains("PID"));
             assert!(header.contains("UID"));
             assert!(header.contains("COMMAND"));
-            assert!(header.contains("BYTES"));
             assert!(header.contains("FILENAME"));
         }
 
@@ -283,7 +273,6 @@ mod tests {
             assert!(header.contains("PID"));
             assert!(!header.contains("UID"));
             assert!(header.contains("COMMAND"));
-            assert!(header.contains("BYTES"));
             assert!(header.contains("FILENAME"));
         }
 
@@ -293,7 +282,7 @@ mod tests {
             assert_eq!(verbose_formatter.separator().len(), 106);
 
             let non_verbose_formatter = EventFormatter::new(false);
-            assert_eq!(non_verbose_formatter.separator().len(), 82);
+            assert_eq!(non_verbose_formatter.separator().len(), 74);
         }
 
         #[test]
@@ -303,8 +292,7 @@ mod tests {
                 .with_pid(1234)
                 .with_uid(1000)
                 .with_command(b"cat")
-                .with_filename(b"/etc/passwd")
-                .with_bytes_read(512);
+                .with_filename(b"/etc/passwd");
 
             let formatted = formatter.format_event(&event);
 
@@ -312,7 +300,6 @@ mod tests {
             assert!(formatted.contains("1000"));
             assert!(formatted.contains("cat"));
             assert!(formatted.contains("/etc/passwd"));
-            assert!(formatted.contains("512"));
         }
 
         #[test]
@@ -322,8 +309,7 @@ mod tests {
                 .with_pid(1234)
                 .with_uid(1000)
                 .with_command(b"cat")
-                .with_filename(b"/etc/passwd")
-                .with_bytes_read(512);
+                .with_filename(b"/etc/passwd");
 
             let formatted = formatter.format_event(&event);
 
@@ -331,7 +317,6 @@ mod tests {
             assert!(!formatted.contains("1000")); // UID not shown in non-verbose
             assert!(formatted.contains("cat"));
             assert!(formatted.contains("/etc/passwd"));
-            assert!(formatted.contains("512"));
         }
 
         #[test]
@@ -341,13 +326,12 @@ mod tests {
             let event = FileReadEvent::new()
                 .with_pid(1234)
                 .with_command(b"cat")
-                .with_filename(long_filename.as_bytes())
-                .with_bytes_read(512);
+                .with_filename(long_filename.as_bytes());
 
             let formatted = formatter.format_event(&event);
 
             assert!(formatted.contains("..."));
-            assert!(formatted.len() <= 82); // Should not exceed expected width
+            assert!(formatted.len() <= 74); // Should not exceed expected width
         }
 
         #[test]
@@ -357,8 +341,7 @@ mod tests {
             let event = FileReadEvent::new()
                 .with_pid(1234)
                 .with_command(b"cat")
-                .with_filename(short_filename.as_bytes())
-                .with_bytes_read(512);
+                .with_filename(short_filename.as_bytes());
 
             let formatted = formatter.format_event(&event);
 

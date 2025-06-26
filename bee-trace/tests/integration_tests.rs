@@ -123,7 +123,6 @@ mod end_to_end_scenarios {
             .with_uid(1000)
             .with_command(b"cat")
             .with_filename(b"/etc/passwd")
-            .with_bytes_read(512)
     }
 
     #[test]
@@ -138,7 +137,6 @@ mod end_to_end_scenarios {
         let formatted = formatter.format_event(&event);
         assert!(formatted.contains("1234"));
         assert!(formatted.contains("cat"));
-        assert!(formatted.contains("512"));
     }
 
     #[test]
@@ -239,24 +237,11 @@ mod complex_filtering_scenarios {
     }
 
     #[test]
-    fn should_handle_events_with_zero_bytes_read() {
-        let normal_args = Args::try_parse_from(&["bee-trace"]).unwrap();
-        let verbose_args = Args::try_parse_from(&["bee-trace", "--verbose"]).unwrap();
-
-        let zero_bytes_event = FileReadEvent::new()
-            .with_filename(b"/etc/passwd")
-            .with_bytes_read(0);
-
-        assert!(!normal_args.should_show_event(&zero_bytes_event));
-        assert!(verbose_args.should_show_event(&zero_bytes_event));
-    }
-
-    #[test]
     fn should_handle_events_with_empty_filename() {
         let normal_args = Args::try_parse_from(&["bee-trace"]).unwrap();
         let verbose_args = Args::try_parse_from(&["bee-trace", "--verbose"]).unwrap();
 
-        let empty_filename_event = FileReadEvent::new().with_bytes_read(100);
+        let empty_filename_event = FileReadEvent::new();
 
         assert!(!normal_args.should_show_event(&empty_filename_event));
         assert!(verbose_args.should_show_event(&empty_filename_event));
@@ -267,7 +252,7 @@ mod complex_filtering_scenarios {
         let args = Args::try_parse_from(&["bee-trace", "--command", "cat"]).unwrap();
 
         // Event matches command but has empty filename (should be filtered out)
-        let filtered_event = FileReadEvent::new().with_command(b"cat").with_bytes_read(0);
+        let filtered_event = FileReadEvent::new().with_command(b"cat");
 
         assert!(args.should_filter_event(&filtered_event)); // Passes command filter
         assert!(!args.should_show_event(&filtered_event)); // Fails visibility check
@@ -276,7 +261,7 @@ mod complex_filtering_scenarios {
         let visible_event = FileReadEvent::new()
             .with_command(b"cat")
             .with_filename(b"/etc/passwd")
-            .with_bytes_read(100);
+;
 
         assert!(args.should_filter_event(&visible_event));
         assert!(args.should_show_event(&visible_event));
@@ -295,11 +280,11 @@ mod output_formatting_edge_cases {
             .with_pid(1234)
             .with_command(b"cat")
             .with_filename(long_filename.as_bytes())
-            .with_bytes_read(512);
+;
 
         let formatted = formatter.format_event(&event);
         assert!(formatted.contains("..."));
-        assert!(formatted.len() <= 82); // Should fit in expected column width
+        assert!(formatted.len() <= 74); // Should fit in expected column width
     }
 
     #[test]
@@ -311,7 +296,7 @@ mod output_formatting_edge_cases {
             .with_pid(1234)
             .with_command(b"cat")
             .with_filename(boundary_filename.as_bytes())
-            .with_bytes_read(512);
+;
 
         let formatted = formatter.format_event(&event);
         assert!(!formatted.contains("...")); // Should not truncate
@@ -327,11 +312,13 @@ mod output_formatting_edge_cases {
             .with_pid(1234)
             .with_command(b"cat")
             .with_filename(long_filename.as_bytes())
-            .with_bytes_read(512);
+;
 
         let formatted = formatter.format_event(&event);
         assert!(!formatted.contains("...")); // Verbose mode shows full filename
-        assert!(formatted.contains(&long_filename));
+        // Since filename is truncated to 64 bytes in the struct, check for that much
+        let expected_filename = &long_filename[..64];
+        assert!(formatted.contains(expected_filename));
     }
 
     #[test]
@@ -345,12 +332,10 @@ mod output_formatting_edge_cases {
         event.filename[0] = 0xFF; // Invalid UTF-8
         event.filename[1] = 0xFE;
         event.filename_len = 2;
-        event.bytes_read = 512;
 
         let formatted = formatter.format_event(&event);
         // Should not panic and should produce some output
         assert!(formatted.contains("1234"));
-        assert!(formatted.contains("512"));
     }
 
     #[test]
@@ -361,13 +346,13 @@ mod output_formatting_edge_cases {
             .with_pid(1)
             .with_command(b"x")
             .with_filename(b"/a")
-            .with_bytes_read(1);
+;
 
         let long_event = FileReadEvent::new()
             .with_pid(999999)
             .with_command(b"very_long_command")
             .with_filename(b"/very/long/path/to/file")
-            .with_bytes_read(1048576);
+;
 
         let short_formatted = formatter.format_event(&short_event);
         let long_formatted = formatter.format_event(&long_event);

@@ -12,7 +12,6 @@ pub struct FileReadEvent {
     pub uid: u32,
     pub filename: [u8; 64],
     pub filename_len: u32,
-    pub bytes_read: u64,
     pub comm: [u8; 16],
 }
 
@@ -21,7 +20,6 @@ pub fn new_file_read_event(
     uid: u32,
     filename: [u8; 64],
     filename_len: u32,
-    bytes_read: u64,
     comm: [u8; 16],
 ) -> FileReadEvent {
     FileReadEvent {
@@ -29,7 +27,6 @@ pub fn new_file_read_event(
         uid: uid,
         filename: filename,
         filename_len: filename_len,
-        bytes_read: bytes_read,
         comm: comm,
     }
 }
@@ -44,7 +41,6 @@ impl FileReadEvent {
             uid: 0,
             filename: [0u8; 64],
             filename_len: 0,
-            bytes_read: 0,
             comm: [0u8; 16],
         }
     }
@@ -63,11 +59,6 @@ impl FileReadEvent {
         let copy_len = filename.len().min(self.filename.len());
         self.filename[..copy_len].copy_from_slice(&filename[..copy_len]);
         self.filename_len = copy_len as u32;
-        self
-    }
-
-    pub fn with_bytes_read(mut self, bytes: u64) -> Self {
-        self.bytes_read = bytes;
         self
     }
 
@@ -112,7 +103,6 @@ mod tests {
             assert_eq!(event.pid, 0);
             assert_eq!(event.uid, 0);
             assert_eq!(event.filename_len, 0);
-            assert_eq!(event.bytes_read, 0);
             assert_eq!(event.filename_as_str(), "");
             assert_eq!(event.command_as_str(), "");
         }
@@ -124,7 +114,6 @@ mod tests {
             assert_eq!(event.pid, 0);
             assert_eq!(event.uid, 0);
             assert_eq!(event.filename_len, 0);
-            assert_eq!(event.bytes_read, 0);
         }
     }
 
@@ -146,22 +135,11 @@ mod tests {
         }
 
         #[test]
-        fn should_build_event_with_bytes_read() {
-            let event = FileReadEvent::new().with_bytes_read(512);
-
-            assert_eq!(event.bytes_read, 512);
-        }
-
-        #[test]
         fn should_chain_builder_methods() {
-            let event = FileReadEvent::new()
-                .with_pid(1234)
-                .with_uid(1000)
-                .with_bytes_read(512);
+            let event = FileReadEvent::new().with_pid(1234).with_uid(1000);
 
             assert_eq!(event.pid, 1234);
             assert_eq!(event.uid, 1000);
-            assert_eq!(event.bytes_read, 512);
         }
     }
 
@@ -293,7 +271,7 @@ mod tests {
             // Size may vary by platform, but should be reasonable
             let size = core::mem::size_of::<FileReadEvent>();
             assert!(size <= 128, "Structure too large: {} bytes", size);
-            assert!(size >= 96, "Structure unexpectedly small: {} bytes", size);
+            assert!(size >= 88, "Structure unexpectedly small: {} bytes", size);
         }
 
         #[test]
