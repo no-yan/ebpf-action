@@ -87,7 +87,7 @@ Bee-trace is a comprehensive security monitoring tool that uses eBPF (Extended B
        runs-on: ubuntu-latest
        steps:
          - uses: actions/checkout@v4
-         
+
          - name: eBPF Security Monitor
            uses: your-org/ebpf-action@v1
            with:
@@ -95,7 +95,7 @@ Bee-trace is a comprehensive security monitoring tool that uses eBPF (Extended B
              config-path: '.github/security.yml'
              duration: '300'  # 5 minutes
              security-mode: 'true'
-             
+
          - name: Your Build Steps
            run: |
              npm install
@@ -110,14 +110,14 @@ Bee-trace is a comprehensive security monitoring tool that uses eBPF (Extended B
        - "1.2.3.4"
      blocked_domains:
        - "malicious-site.com"
-   
+
    files:
      watch_read:
        - "**/credentials.json"
        - "**/*.pem"
        - "**/id_rsa"
        - "**/.env*"
-   
+
    memory:
      secret_env_patterns:
        - "SECRET_*"
@@ -329,7 +329,7 @@ performance:
 | `duration` | Max monitoring duration (seconds) | Until job completion | No |
 | `security-mode` | Enable comprehensive monitoring | `true` | No |
 | `verbose` | Enable detailed output | `false` | No |
-| `report-format` | Report format (json/markdown) | `json,markdown` | No |
+| `report-format` | Report format (json/markdown) | `json,  ` | No |
 
 ## 🛡️ Security Considerations
 
@@ -369,7 +369,7 @@ performance:
    ```bash
    # Check kernel version (requires 4.18+)
    uname -r
-   
+
    # Verify eBPF support
    cat /proc/config.gz | zcat | grep CONFIG_BPF
    ```
@@ -378,7 +378,7 @@ performance:
    ```bash
    # Test with verbose mode
    just run --verbose --duration 30
-   
+
    # Check for file activity
    just monitor-cat  # Will show events when files are read
    ```

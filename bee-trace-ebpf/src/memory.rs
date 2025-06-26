@@ -14,10 +14,7 @@ static ENV_ACCESS_EVENTS: PerfEventArray<SecretAccessEvent> = PerfEventArray::ne
 
 #[tracepoint]
 pub fn sys_enter_ptrace(ctx: TracePointContext) -> u32 {
-    match unsafe { try_sys_enter_ptrace(ctx) } {
-        Ok(ret) => ret,
-        Err(_) => 1,
-    }
+    unsafe { try_sys_enter_ptrace(ctx) }.unwrap_or(1)
 }
 
 unsafe fn try_sys_enter_ptrace(ctx: TracePointContext) -> Result<u32, i64> {
@@ -43,10 +40,7 @@ unsafe fn try_sys_enter_ptrace(ctx: TracePointContext) -> Result<u32, i64> {
 
 #[tracepoint]
 pub fn sys_enter_process_vm_readv(ctx: TracePointContext) -> u32 {
-    match unsafe { try_sys_enter_process_vm_readv(ctx) } {
-        Ok(ret) => ret,
-        Err(_) => 1,
-    }
+    unsafe { try_sys_enter_process_vm_readv(ctx) }.unwrap_or(1)
 }
 
 unsafe fn try_sys_enter_process_vm_readv(ctx: TracePointContext) -> Result<u32, i64> {

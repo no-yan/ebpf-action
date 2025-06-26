@@ -12,10 +12,7 @@ static FILE_READ_EVENTS: PerfEventArray<FileReadEvent> = PerfEventArray::new(0);
 
 #[kprobe]
 pub fn vfs_read(ctx: ProbeContext) -> u32 {
-    match unsafe { try_vfs_read(ctx) } {
-        Ok(ret) => ret,
-        Err(_) => 1,
-    }
+    unsafe { try_vfs_read(ctx) }.unwrap_or(1)
 }
 
 unsafe fn try_vfs_read(ctx: ProbeContext) -> Result<u32, i64> {
@@ -45,9 +42,7 @@ unsafe fn try_vfs_read(ctx: ProbeContext) -> Result<u32, i64> {
         placeholder.len()
     };
 
-    for i in 0..copy_len {
-        event.filename[i] = placeholder[i];
-    }
+    event.filename[..copy_len].copy_from_slice(&placeholder[..copy_len]);
     event.filename_len = copy_len as u32;
 
     FILE_READ_EVENTS.output(&ctx, &event, 0);
@@ -56,10 +51,7 @@ unsafe fn try_vfs_read(ctx: ProbeContext) -> Result<u32, i64> {
 
 #[tracepoint]
 pub fn sys_enter_read(ctx: TracePointContext) -> u32 {
-    match unsafe { try_sys_enter_read(ctx) } {
-        Ok(ret) => ret,
-        Err(_) => 1,
-    }
+    unsafe { try_sys_enter_read(ctx) }.unwrap_or(1)
 }
 
 unsafe fn try_sys_enter_read(ctx: TracePointContext) -> Result<u32, i64> {

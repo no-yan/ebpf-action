@@ -23,11 +23,11 @@ pub fn new_file_read_event(
     comm: [u8; 16],
 ) -> FileReadEvent {
     FileReadEvent {
-        pid: pid,
-        uid: uid,
-        filename: filename,
-        filename_len: filename_len,
-        comm: comm,
+        pid,
+        uid,
+        filename,
+        filename_len,
+        comm,
     }
 }
 

@@ -15,10 +15,7 @@ static WATCHED_PATTERNS: HashMap<[u8; 64], u8> = HashMap::with_max_entries(128, 
 
 #[tracepoint]
 pub fn sys_enter_openat(ctx: TracePointContext) -> u32 {
-    match unsafe { try_sys_enter_openat(ctx) } {
-        Ok(ret) => ret,
-        Err(_) => 1,
-    }
+    unsafe { try_sys_enter_openat(ctx) }.unwrap_or(1)
 }
 
 unsafe fn try_sys_enter_openat(ctx: TracePointContext) -> Result<u32, i64> {
@@ -55,9 +52,7 @@ unsafe fn try_sys_enter_openat(ctx: TracePointContext) -> Result<u32, i64> {
 
     // Copy the filename to the event
     let copy_len = (filename_len as usize).min(event.path_or_var.len());
-    for i in 0..copy_len {
-        event.path_or_var[i] = filename_buf[i];
-    }
+    event.path_or_var[..copy_len].copy_from_slice(&filename_buf[..copy_len]);
 
     SECRET_ACCESS_EVENTS.output(&ctx, &event, 0);
     Ok(0)

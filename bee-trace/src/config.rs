@@ -3,6 +3,33 @@ use std::{fs, net::IpAddr, path::Path};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Config {
+    #[serde(default)]
+    pub monitoring: MonitoringConfig,
+    #[serde(default)]
+    pub output: OutputConfig,
+    #[serde(default)]
+    pub security: SecurityConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MonitoringConfig {
+    pub default_duration_seconds: Option<u64>,
+    pub security_mode: Option<bool>,
+    pub min_severity: Option<String>,
+    pub exclude_pids: Option<Vec<u32>>,
+    pub include_pids: Option<Vec<u32>>,
+    pub cpu_limit: Option<u8>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OutputConfig {
+    pub verbose: Option<bool>,
+    pub format: Option<String>,
+    pub no_header: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityConfig {
     #[serde(default)]
     pub network: NetworkConfig,
@@ -20,6 +47,39 @@ pub struct NetworkConfig {
 pub struct FileConfig {
     #[serde(default)]
     pub watch_read: Vec<String>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            monitoring: MonitoringConfig::default(),
+            output: OutputConfig::default(),
+            security: SecurityConfig::default(),
+        }
+    }
+}
+
+impl Default for MonitoringConfig {
+    fn default() -> Self {
+        Self {
+            default_duration_seconds: None,
+            security_mode: None,
+            min_severity: None,
+            exclude_pids: None,
+            include_pids: None,
+            cpu_limit: None,
+        }
+    }
+}
+
+impl Default for OutputConfig {
+    fn default() -> Self {
+        Self {
+            verbose: None,
+            format: None,
+            no_header: None,
+        }
+    }
 }
 
 impl Default for SecurityConfig {
@@ -42,6 +102,18 @@ impl Default for FileConfig {
         Self {
             watch_read: Vec::new(),
         }
+    }
+}
+
+impl Config {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn std::error::Error>> {
+        let content = fs::read_to_string(path)?;
+        Self::from_yaml_str(&content)
+    }
+
+    pub fn from_yaml_str(yaml_str: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        let config: Config = serde_yaml::from_str(yaml_str)?;
+        Ok(config)
     }
 }
 

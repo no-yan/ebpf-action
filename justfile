@@ -109,7 +109,9 @@ test-ebpf:
     cargo test -p bee-trace-ebpf
 
 lint:
-    cargo clippy -- -D warnings
+    cargo clippy -p bee-trace-common -- -D warnings
+    cargo clippy --lib -p bee-trace -- -D warnings
+    cargo clippy --tests -p bee-trace -- -D warnings
 
 # Configuration examples
 create-security-config:
