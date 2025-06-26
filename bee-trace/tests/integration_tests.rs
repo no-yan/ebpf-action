@@ -9,7 +9,7 @@ mod cli_argument_parsing {
     fn should_parse_default_arguments() {
         let args = Args::try_parse_from(&["bee-trace"]).unwrap();
 
-        assert_eq!(args.probe_type, "file_monitor");
+        assert_eq!(args.probe_type, "vfs_read");
         assert_eq!(args.duration, None);
         assert_eq!(args.command, None);
         assert!(!args.verbose);
