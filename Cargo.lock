@@ -237,6 +237,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "bee-trace-bindings"
+version = "0.1.0"
+dependencies = [
+ "aya-ebpf",
+]
+
+[[package]]
 name = "bee-trace-common"
 version = "0.1.0"
 dependencies = [
@@ -250,6 +257,7 @@ version = "0.1.0"
 dependencies = [
  "aya-ebpf",
  "aya-log-ebpf",
+ "bee-trace-bindings",
  "bee-trace-common",
  "which",
 ]

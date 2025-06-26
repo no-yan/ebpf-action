@@ -4,6 +4,7 @@ members = [
     "bee-trace",
     "bee-trace-common",
     "bee-trace-ebpf",
+    "bee-trace-bindings",
 ]
 default-members = ["bee-trace", "bee-trace-common"]
 

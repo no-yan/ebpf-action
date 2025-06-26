@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 bee-trace-common = { path = "../bee-trace-common" }
+bee-trace-bindings = { path = "../bee-trace-bindings" }
 
 aya-ebpf = { workspace = true }
 aya-log-ebpf = { workspace = true }

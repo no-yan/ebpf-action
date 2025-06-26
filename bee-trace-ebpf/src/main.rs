@@ -5,16 +5,6 @@ use aya_ebpf::{macros::socket_filter, programs::SkBuffContext};
 pub use lsm::*;
 mod lsm;
 
-#[allow(clippy::all)]
-#[allow(dead_code)]
-#[allow(non_camel_case_types)]
-#[allow(non_snake_case)]
-#[allow(non_upper_case_globals)]
-#[warn(unknown_lints)]
-#[allow(unnecessary_transmutes)]
-#[rustfmt::skip]
-mod vmlinux;
-
 #[socket_filter]
 pub fn bee_trace(_ctx: SkBuffContext) -> i64 {
     0

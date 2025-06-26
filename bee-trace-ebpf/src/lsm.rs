@@ -6,7 +6,7 @@ use aya_ebpf::{
 };
 use bee_trace_common::FileReadEvent;
 
-use crate::vmlinux::file;
+use bee_trace_bindings::file;
 
 #[map]
 static FILE_READ_EVENTS: PerfEventArray<FileReadEvent> = PerfEventArray::new(0);
