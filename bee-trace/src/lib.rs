@@ -35,7 +35,7 @@ impl SecurityEvent {
 #[derive(Debug, Clone, Parser)]
 #[clap(name = "bee-trace", about = "eBPF security monitoring tool")]
 pub struct Args {
-    #[clap(short, long, default_value = "file_monitor")]
+    #[clap(short, long, default_value = "vfs_read")]
     pub probe_type: String,
 
     #[clap(short, long, help = "Duration to run the tracer in seconds")]
@@ -57,7 +57,8 @@ pub struct Args {
 impl Args {
     pub fn validate(&self) -> Result<(), String> {
         match self.probe_type.as_str() {
-            "vfs_read" | "sys_enter_read" | "file_monitor" | "network_monitor" | "memory_monitor" | "all" => Ok(()),
+            "vfs_read" | "sys_enter_read" | "file_monitor" | "network_monitor"
+            | "memory_monitor" | "all" => Ok(()),
             _ => Err(format!("Unsupported probe type: {}", self.probe_type)),
         }
     }
@@ -90,7 +91,7 @@ impl Args {
         if self.security_mode {
             return true;
         }
-        
+
         // For file events in legacy mode, apply original logic
         match event {
             SecurityEvent::FileRead(file_event) => self.should_show_event(file_event),
@@ -179,15 +180,21 @@ impl SecurityReport {
 
     pub fn to_markdown(&self) -> String {
         let mut md = String::new();
-        
+
         md.push_str("# eBPF Security Monitoring Report\n\n");
-        
+
         // Metadata
         md.push_str("## Metadata\n\n");
         md.push_str(&format!("- **Timestamp**: {}\n", self.metadata.timestamp));
-        md.push_str(&format!("- **Duration**: {} seconds\n", self.metadata.duration_seconds));
+        md.push_str(&format!(
+            "- **Duration**: {} seconds\n",
+            self.metadata.duration_seconds
+        ));
         md.push_str(&format!("- **Probe Type**: {}\n", self.metadata.probe_type));
-        md.push_str(&format!("- **Total Events**: {}\n", self.metadata.total_events));
+        md.push_str(&format!(
+            "- **Total Events**: {}\n",
+            self.metadata.total_events
+        ));
         md.push_str(&format!("- **Version**: {}\n\n", self.metadata.version));
 
         // Summary
@@ -195,10 +202,22 @@ impl SecurityReport {
         md.push_str(&format!("| Event Type | Count |\n"));
         md.push_str(&format!("|------------|-------|\n"));
         md.push_str(&format!("| File Access | {} |\n", self.summary.file_events));
-        md.push_str(&format!("| Network Activity | {} |\n", self.summary.network_events));
-        md.push_str(&format!("| Secret Access | {} |\n", self.summary.secret_access_events));
-        md.push_str(&format!("| Memory Access | {} |\n", self.summary.memory_events));
-        md.push_str(&format!("| **High Severity** | **{}** |\n\n", self.summary.high_severity_events));
+        md.push_str(&format!(
+            "| Network Activity | {} |\n",
+            self.summary.network_events
+        ));
+        md.push_str(&format!(
+            "| Secret Access | {} |\n",
+            self.summary.secret_access_events
+        ));
+        md.push_str(&format!(
+            "| Memory Access | {} |\n",
+            self.summary.memory_events
+        ));
+        md.push_str(&format!(
+            "| **High Severity** | **{}** |\n\n",
+            self.summary.high_severity_events
+        ));
 
         // Severity breakdown
         if self.summary.high_severity_events > 0 {
@@ -210,7 +229,7 @@ impl SecurityReport {
         // Events
         if !self.events.is_empty() {
             md.push_str("## Detailed Events\n\n");
-            
+
             // Group events by severity
             let mut high_severity = Vec::new();
             let mut medium_severity = Vec::new();
@@ -227,26 +246,42 @@ impl SecurityReport {
             if !high_severity.is_empty() {
                 md.push_str("### 🔴 High Severity Events\n\n");
                 for event in high_severity {
-                    md.push_str(&format!("- **{}** [{}] PID:{} UID:{} CMD:{} - {}\n", 
-                        event.timestamp, event.event_type, event.pid, event.uid, event.command, event.details));
+                    md.push_str(&format!(
+                        "- **{}** [{}] PID:{} UID:{} CMD:{} - {}\n",
+                        event.timestamp,
+                        event.event_type,
+                        event.pid,
+                        event.uid,
+                        event.command,
+                        event.details
+                    ));
                 }
                 md.push_str("\n");
             }
 
             if !medium_severity.is_empty() {
                 md.push_str("### 🟡 Medium Severity Events\n\n");
-                for event in medium_severity.iter().take(10) { // Limit to first 10
-                    md.push_str(&format!("- **{}** [{}] PID:{} CMD:{} - {}\n", 
-                        event.timestamp, event.event_type, event.pid, event.command, event.details));
+                for event in medium_severity.iter().take(10) {
+                    // Limit to first 10
+                    md.push_str(&format!(
+                        "- **{}** [{}] PID:{} CMD:{} - {}\n",
+                        event.timestamp, event.event_type, event.pid, event.command, event.details
+                    ));
                 }
                 if medium_severity.len() > 10 {
-                    md.push_str(&format!("\n... and {} more medium severity events\n", medium_severity.len() - 10));
+                    md.push_str(&format!(
+                        "\n... and {} more medium severity events\n",
+                        medium_severity.len() - 10
+                    ));
                 }
                 md.push_str("\n");
             }
 
             if !low_severity.is_empty() {
-                md.push_str(&format!("### 🟢 Low Severity Events: {} total\n\n", low_severity.len()));
+                md.push_str(&format!(
+                    "### 🟢 Low Severity Events: {} total\n\n",
+                    low_severity.len()
+                ));
                 md.push_str("Low severity events are not detailed in this report for brevity.\n\n");
             }
         }
@@ -274,7 +309,10 @@ impl EventFormatter {
                 "PID", "UID", "COMMAND", "EVENT_TYPE", "DETAILS"
             )
         } else {
-            format!("{:<8} {:<16} {:<12} {:<48}", "PID", "COMMAND", "EVENT_TYPE", "DETAILS")
+            format!(
+                "{:<8} {:<16} {:<12} {:<48}",
+                "PID", "COMMAND", "EVENT_TYPE", "DETAILS"
+            )
         }
     }
 
@@ -342,13 +380,19 @@ impl EventFormatter {
                     } else {
                         filename.to_string()
                     };
-                    format!("{:<8} {:<16} {:<12} {:<48}", pid, comm, "FILE_READ", truncated)
+                    format!(
+                        "{:<8} {:<16} {:<12} {:<48}",
+                        pid, comm, "FILE_READ", truncated
+                    )
                 }
             }
             SecurityEvent::Network(e) => {
-                let details = format!("{}:{} ({})", 
-                    e.dest_ip_as_str(), e.dest_port, 
-                    if e.protocol == 0 { "TCP" } else { "UDP" });
+                let details = format!(
+                    "{}:{} ({})",
+                    e.dest_ip_as_str(),
+                    e.dest_port,
+                    if e.protocol == 0 { "TCP" } else { "UDP" }
+                );
                 if self.verbose {
                     format!(
                         "{:<8} {:<8} {:<16} {:<12} {:<64}",
@@ -360,7 +404,11 @@ impl EventFormatter {
             }
             SecurityEvent::SecretAccess(e) => {
                 let details = e.path_or_var_as_str();
-                let event_type = if e.access_type == 0 { "SECRET_FILE" } else { "SECRET_ENV" };
+                let event_type = if e.access_type == 0 {
+                    "SECRET_FILE"
+                } else {
+                    "SECRET_ENV"
+                };
                 if self.verbose {
                     format!(
                         "{:<8} {:<8} {:<16} {:<12} {:<64}",
@@ -372,20 +420,32 @@ impl EventFormatter {
                     } else {
                         details.to_string()
                     };
-                    format!("{:<8} {:<16} {:<12} {:<48}", pid, comm, event_type, truncated)
+                    format!(
+                        "{:<8} {:<16} {:<12} {:<48}",
+                        pid, comm, event_type, truncated
+                    )
                 }
             }
             SecurityEvent::ProcessMemory(e) => {
-                let details = format!("target_pid:{} ({})", 
-                    e.target_pid, 
-                    if e.syscall_type == 0 { "ptrace" } else { "process_vm_readv" });
+                let details = format!(
+                    "target_pid:{} ({})",
+                    e.target_pid,
+                    if e.syscall_type == 0 {
+                        "ptrace"
+                    } else {
+                        "process_vm_readv"
+                    }
+                );
                 if self.verbose {
                     format!(
                         "{:<8} {:<8} {:<16} {:<12} {:<64}",
                         pid, e.uid, comm, "PROC_MEMORY", details
                     )
                 } else {
-                    format!("{:<8} {:<16} {:<12} {:<48}", pid, comm, "PROC_MEMORY", details)
+                    format!(
+                        "{:<8} {:<16} {:<12} {:<48}",
+                        pid, comm, "PROC_MEMORY", details
+                    )
                 }
             }
         }

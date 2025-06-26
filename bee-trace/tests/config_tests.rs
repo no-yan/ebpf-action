@@ -1,5 +1,6 @@
-use bee_trace::config::{FileConfig, NetworkConfig, SecurityConfig};
 use std::net::IpAddr;
+
+use bee_trace::config::{FileConfig, NetworkConfig, SecurityConfig};
 
 mod security_config_tests {
     use super::*;
@@ -38,6 +39,7 @@ files:
         #[test]
         fn should_load_config_from_file() {
             use std::io::Write;
+
             use tempfile::NamedTempFile;
 
             let yaml_content = r#"

@@ -182,6 +182,7 @@ impl NetworkEvent {
     }
 
     pub fn dest_ip_as_str(&self) -> &str {
+        // TODO: convert ipv4 bits into human readable style(e.g. `111.111.111.111`).
         if self.is_ipv6 == 0 {
             // IPv4
             "<ipv4>"

@@ -1,10 +1,10 @@
 #![no_std]
 #![no_main]
 
-mod lsm;
 mod file_monitor;
-mod network;
+mod lsm;
 mod memory;
+mod network;
 
 #[cfg(not(test))]
 #[panic_handler]

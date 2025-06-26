@@ -1,7 +1,6 @@
+use std::{fs, net::IpAddr, path::Path};
+
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::net::IpAddr;
-use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityConfig {
