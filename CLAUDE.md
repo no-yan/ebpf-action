@@ -2,6 +2,21 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+- [CLAUDE.md](#claudemd)
+  - [Project Overview](#project-overview)
+  - [Architecture](#architecture)
+  - [Build System](#build-system)
+    - [Prerequisites](#prerequisites)
+    - [Core Commands](#core-commands)
+    - [Cross-compilation (macOS)](#cross-compilation-macos)
+    - [Docker Development](#docker-development)
+  - [eBPF Development Notes](#ebpf-development-notes)
+  - [Development Environment](#development-environment)
+  - [Code Style](#code-style)
+  - [File Reading Monitoring Feature](#file-reading-monitoring-feature)
+  - [Testing](#testing)
+  - [Testing \& CI](#testing--ci)
+
 ## Project Overview
 
 This is `bee-trace`, an eBPF-based tracing tool built with Rust using the Aya framework. The project demonstrates eBPF socket filtering capabilities and is designed to run in containerized environments with proper eBPF capabilities.
@@ -101,7 +116,7 @@ The project now includes a comprehensive file reading monitoring system:
 
 **Core Functionality:**
 - Monitors file read operations at the VFS layer using kprobes
-- Alternative syscall tracing via tracepoints 
+- Alternative syscall tracing via tracepoints
 - Real-time event streaming via perf event arrays
 - Command-line filtering and configuration options
 
@@ -179,7 +194,11 @@ cargo test performance --release
 - String handling edge cases (UTF-8, truncation, null termination)
 - Cross-platform size and alignment validation
 
-See `TESTING.md` for comprehensive testing documentation.
+See `docs/TESTING.md` for comprehensive testing documentation.
+
+## Documentation
+
+For detailed documentation, refer to the `docs/` directory. When creating new documentation files, place them in the `docs/` directory to keep the project root organized.
 
 ## Testing & CI
 
