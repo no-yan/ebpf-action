@@ -152,7 +152,6 @@ impl ReportGenerator {
         }
     }
 
-
     fn classify_network_severity(&self, dest_ip: &str, port: u16) -> String {
         let suspicious_ports = [22, 23, 3389, 5900, 6000];
         let common_safe_ports = [80, 443, 53, 993, 995, 587, 465];
@@ -222,7 +221,7 @@ impl ReportStats {
 
 #[cfg(test)]
 mod tests {
-    use bee_trace_common::FileReadEvent;
+    use bee_trace_common::SecretAccessEvent;
 
     use super::*;
 
@@ -232,7 +231,6 @@ mod tests {
         assert_eq!(generator.report.metadata.probe_type, "test");
         assert_eq!(generator.report.metadata.total_events, 0);
     }
-
 
     #[test]
     fn should_classify_network_severity() {
@@ -254,31 +252,31 @@ mod tests {
     fn should_add_and_track_events() {
         let mut generator = ReportGenerator::new("test".to_string());
 
-        let file_event = FileReadEvent::new()
+        let secret_event = SecretAccessEvent::new()
             .with_pid(1234)
             .with_uid(1000)
             .with_command(b"cat")
-            .with_filename(b"/etc/passwd");
+            .with_file_access(b"/etc/passwd");
 
-        generator.add_security_event(&SecurityEvent::FileRead(file_event));
+        generator.add_security_event(&SecurityEvent::SecretAccess(secret_event));
 
         assert_eq!(generator.report.metadata.total_events, 1);
-        assert_eq!(generator.report.summary.file_events, 1);
+        assert_eq!(generator.report.summary.secret_access_events, 1);
     }
 
     #[test]
     fn should_calculate_stats() {
         let mut generator = ReportGenerator::new("test".to_string());
 
-        let file_event = FileReadEvent::new()
+        let secret_event = SecretAccessEvent::new()
             .with_command(b"cat")
-            .with_filename(b"/etc/passwd");
+            .with_file_access(b"/etc/passwd");
 
-        generator.add_security_event(&SecurityEvent::FileRead(file_event));
+        generator.add_security_event(&SecurityEvent::SecretAccess(secret_event));
 
         let stats = generator.get_stats();
         assert_eq!(stats.total_events, 1);
         assert_eq!(stats.process_stats.get("cat").unwrap(), &1);
-        assert_eq!(stats.event_type_breakdown.get("FILE_READ").unwrap(), &1);
+        assert_eq!(stats.event_type_breakdown.get("SECRET_FILE").unwrap(), &1);
     }
 }

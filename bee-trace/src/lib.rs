@@ -139,7 +139,6 @@ impl SecurityReport {
 
     pub fn add_event(&mut self, event: ReportEvent) {
         match event.event_type.as_str() {
-            "FILE_READ" => self.summary.file_events += 1,
             "NETWORK" => self.summary.network_events += 1,
             "SECRET_FILE" | "SECRET_ENV" => self.summary.secret_access_events += 1,
             "PROC_MEMORY" => self.summary.memory_events += 1,
