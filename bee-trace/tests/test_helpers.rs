@@ -159,7 +159,7 @@ pub mod scenarios {
         TestScenario {
             name: "no_filtering",
             args: Args {
-                probe_type: "vfs_read".to_string(),
+                probe_type: "file_monitor".to_string(),
                 duration: None,
                 command: None,
                 verbose: false,
@@ -180,7 +180,7 @@ pub mod scenarios {
         TestScenario {
             name: "command_filtering",
             args: Args {
-                probe_type: "vfs_read".to_string(),
+                probe_type: "file_monitor".to_string(),
                 duration: None,
                 command: Some("cat".to_string()),
                 verbose: false,
@@ -201,7 +201,7 @@ pub mod scenarios {
         TestScenario {
             name: "verbose_mode_showing_empty_events",
             args: Args {
-                probe_type: "vfs_read".to_string(),
+                probe_type: "file_monitor".to_string(),
                 duration: None,
                 command: None,
                 verbose: true,
@@ -223,7 +223,7 @@ pub mod scenarios {
         TestScenario {
             name: "normal_mode_hiding_empty_events",
             args: Args {
-                probe_type: "vfs_read".to_string(),
+                probe_type: "file_monitor".to_string(),
                 duration: None,
                 command: None,
                 verbose: false,
@@ -245,7 +245,7 @@ pub mod scenarios {
         TestScenario {
             name: "mixed_filtering",
             args: Args {
-                probe_type: "vfs_read".to_string(),
+                probe_type: "file_monitor".to_string(),
                 duration: None,
                 command: Some("cat".to_string()),
                 verbose: false,

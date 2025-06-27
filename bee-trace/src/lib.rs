@@ -69,7 +69,7 @@ impl Args {
         true
     }
 
-    pub fn should_show_security_event(&self, event: &SecurityEvent) -> bool {
+    pub fn should_show_security_event(&self, _event: &SecurityEvent) -> bool {
         // In security mode, show all events by default
         if self.security_mode {
             return true;
@@ -407,15 +407,15 @@ mod tests {
             };
             assert!(vfs_args.validate().is_ok());
 
-            let syscall_args = Args {
-                probe_type: "sys_enter_read".to_string(),
+            let network_args = Args {
+                probe_type: "network_monitor".to_string(),
                 duration: None,
                 command: None,
                 verbose: false,
                 security_mode: false,
                 config: None,
             };
-            assert!(syscall_args.validate().is_ok());
+            assert!(network_args.validate().is_ok());
         }
 
         #[test]

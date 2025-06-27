@@ -445,7 +445,7 @@ mod tests {
             .unwrap();
 
         let config = CliConfig::from_matches(&matches).unwrap();
-        assert_eq!(config.probe_type, "vfs_read");
+        assert_eq!(config.probe_type, "file_monitor");
         assert!(!config.verbose);
         assert!(!config.security_mode);
     }

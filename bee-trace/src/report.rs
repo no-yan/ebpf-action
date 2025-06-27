@@ -102,15 +102,6 @@ impl ReportGenerator {
         let command = event.command_as_str();
 
         match event {
-            SecurityEvent::FileRead(e) => ReportEvent {
-                timestamp,
-                event_type: "FILE_READ".to_string(),
-                severity: self.classify_file_severity(e.filename_as_str()),
-                pid,
-                uid: e.uid,
-                command,
-                details: e.filename_as_str().to_string(),
-            },
             SecurityEvent::Network(e) => ReportEvent {
                 timestamp,
                 event_type: "NETWORK".to_string(),
@@ -161,50 +152,6 @@ impl ReportGenerator {
         }
     }
 
-    fn classify_file_severity(&self, filename: &str) -> String {
-        let high_risk_patterns = [
-            "/etc/passwd",
-            "/etc/shadow",
-            "/etc/hosts",
-            "/root/",
-            "/.ssh/",
-            "/home/",
-            "/.aws/",
-            "/.gcp/",
-            "/.azure/",
-            ".pem",
-            ".key",
-            ".crt",
-            ".p12",
-            ".pfx",
-        ];
-
-        let medium_risk_patterns = [
-            "/etc/",
-            "/var/log/",
-            "/proc/",
-            "/sys/",
-            ".conf",
-            ".config",
-            ".env",
-        ];
-
-        let filename_lower = filename.to_lowercase();
-
-        for pattern in &high_risk_patterns {
-            if filename_lower.contains(pattern) {
-                return "high".to_string();
-            }
-        }
-
-        for pattern in &medium_risk_patterns {
-            if filename_lower.contains(pattern) {
-                return "medium".to_string();
-            }
-        }
-
-        "low".to_string()
-    }
 
     fn classify_network_severity(&self, dest_ip: &str, port: u16) -> String {
         let suspicious_ports = [22, 23, 3389, 5900, 6000];
@@ -286,37 +233,6 @@ mod tests {
         assert_eq!(generator.report.metadata.total_events, 0);
     }
 
-    #[test]
-    fn should_classify_high_risk_files() {
-        let generator = ReportGenerator::new("test".to_string());
-        assert_eq!(generator.classify_file_severity("/etc/passwd"), "high");
-        assert_eq!(
-            generator.classify_file_severity("/root/.ssh/id_rsa"),
-            "high"
-        );
-        assert_eq!(
-            generator.classify_file_severity("/home/user/.aws/credentials"),
-            "high"
-        );
-    }
-
-    #[test]
-    fn should_classify_medium_risk_files() {
-        let generator = ReportGenerator::new("test".to_string());
-        assert_eq!(generator.classify_file_severity("/etc/hosts"), "high"); // Actually high risk
-        assert_eq!(
-            generator.classify_file_severity("/var/log/auth.log"),
-            "medium"
-        );
-        assert_eq!(generator.classify_file_severity("/proc/version"), "medium");
-    }
-
-    #[test]
-    fn should_classify_low_risk_files() {
-        let generator = ReportGenerator::new("test".to_string());
-        assert_eq!(generator.classify_file_severity("/tmp/test.txt"), "low");
-        assert_eq!(generator.classify_file_severity("/usr/bin/ls"), "low");
-    }
 
     #[test]
     fn should_classify_network_severity() {
