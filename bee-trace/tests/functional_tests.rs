@@ -103,7 +103,7 @@ mod event_stream_processing {
     fn should_process_valid_events_in_sequence() {
         let processor = MockEventProcessor::new();
         let args = Args {
-            probe_type: "vfs_read".to_string(),
+            probe_type: "file_monitor".to_string(),
             duration: None,
             command: None,
             verbose: false,
@@ -137,7 +137,7 @@ mod event_stream_processing {
     fn should_filter_events_by_command() {
         let processor = MockEventProcessor::new();
         let args = Args {
-            probe_type: "vfs_read".to_string(),
+            probe_type: "file_monitor".to_string(),
             duration: None,
             command: Some("cat".to_string()),
             verbose: false,
@@ -165,7 +165,7 @@ mod event_stream_processing {
     fn should_hide_empty_events_in_normal_mode() {
         let processor = MockEventProcessor::new();
         let args = Args {
-            probe_type: "vfs_read".to_string(),
+            probe_type: "file_monitor".to_string(),
             duration: None,
             command: None,
             verbose: false,
@@ -193,7 +193,7 @@ mod event_stream_processing {
     fn should_show_all_events_in_verbose_mode() {
         let processor = MockEventProcessor::new();
         let args = Args {
-            probe_type: "vfs_read".to_string(),
+            probe_type: "file_monitor".to_string(),
             duration: None,
             command: None,
             verbose: true,
@@ -220,7 +220,7 @@ mod event_stream_processing {
     fn should_handle_high_volume_event_stream() {
         let processor = MockEventProcessor::new();
         let args = Args {
-            probe_type: "vfs_read".to_string(),
+            probe_type: "file_monitor".to_string(),
             duration: None,
             command: None,
             verbose: false,
@@ -254,7 +254,7 @@ mod event_stream_processing {
     fn should_handle_mixed_filtering_scenarios() {
         let processor = MockEventProcessor::new();
         let args = Args {
-            probe_type: "vfs_read".to_string(),
+            probe_type: "file_monitor".to_string(),
             duration: None,
             command: Some("cat".to_string()),
             verbose: false,
@@ -295,7 +295,7 @@ mod performance_characteristics {
     fn should_process_events_efficiently() {
         let processor = MockEventProcessor::new();
         let args = Args {
-            probe_type: "vfs_read".to_string(),
+            probe_type: "file_monitor".to_string(),
             duration: None,
             command: None,
             verbose: false,
@@ -331,7 +331,7 @@ mod performance_characteristics {
     fn should_handle_memory_efficiently_with_large_filenames() {
         let processor = MockEventProcessor::new();
         let args = Args {
-            probe_type: "vfs_read".to_string(),
+            probe_type: "file_monitor".to_string(),
             duration: None,
             command: None,
             verbose: false,
@@ -365,7 +365,7 @@ mod edge_case_handling {
     fn should_handle_zero_values_gracefully() {
         let processor = MockEventProcessor::new();
         let args = Args {
-            probe_type: "vfs_read".to_string(),
+            probe_type: "file_monitor".to_string(),
             duration: None,
             command: None,
             verbose: true, // Verbose to see all events
@@ -388,7 +388,7 @@ mod edge_case_handling {
     fn should_handle_maximum_values() {
         let processor = MockEventProcessor::new();
         let args = Args {
-            probe_type: "vfs_read".to_string(),
+            probe_type: "file_monitor".to_string(),
             duration: None,
             command: None,
             verbose: true,
@@ -418,7 +418,7 @@ mod edge_case_handling {
 
         // Test empty command filter
         let empty_filter_args = Args {
-            probe_type: "vfs_read".to_string(),
+            probe_type: "file_monitor".to_string(),
             duration: None,
             command: Some("".to_string()),
             verbose: false,
@@ -437,7 +437,7 @@ mod edge_case_handling {
 
         // Test whitespace-only filter
         let whitespace_filter_args = Args {
-            probe_type: "vfs_read".to_string(),
+            probe_type: "file_monitor".to_string(),
             duration: None,
             command: Some("   ".to_string()),
             verbose: false,
@@ -455,7 +455,7 @@ mod edge_case_handling {
     fn should_handle_unicode_in_paths() {
         let processor = MockEventProcessor::new();
         let args = Args {
-            probe_type: "vfs_read".to_string(),
+            probe_type: "file_monitor".to_string(),
             duration: None,
             command: None,
             verbose: true,
@@ -488,7 +488,7 @@ mod state_management {
     fn should_maintain_state_across_multiple_processing_rounds() {
         let processor = MockEventProcessor::new();
         let args = Args {
-            probe_type: "vfs_read".to_string(),
+            probe_type: "file_monitor".to_string(),
             duration: None,
             command: None,
             verbose: false,
@@ -520,7 +520,7 @@ mod state_management {
 
         let processor = Arc::new(MockEventProcessor::new());
         let args = Arc::new(Args {
-            probe_type: "vfs_read".to_string(),
+            probe_type: "file_monitor".to_string(),
             duration: None,
             command: None,
             verbose: false,

@@ -2,7 +2,6 @@
 #![no_main]
 
 mod file_monitor;
-mod lsm;
 mod memory;
 mod network;
 

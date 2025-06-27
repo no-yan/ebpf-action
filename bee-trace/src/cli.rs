@@ -22,14 +22,12 @@ impl CliApp {
                     .value_name("TYPE")
                     .help("Type of probe to attach")
                     .long_help("Specify which eBPF probe to attach:\n\
-                               - vfs_read: Monitor file reads via VFS layer\n\
-                               - sys_enter_read: Monitor read syscalls\n\
                                - file_monitor: Monitor file access and secret files\n\
                                - network_monitor: Monitor network connections\n\
                                - memory_monitor: Monitor process memory access\n\
                                - all: Enable all monitoring capabilities")
-                    .value_parser(["vfs_read", "sys_enter_read", "file_monitor", "network_monitor", "memory_monitor", "all"])
-                    .default_value("vfs_read")
+                    .value_parser(["file_monitor", "network_monitor", "memory_monitor", "all"])
+                    .default_value("file_monitor")
             )
             .arg(
                 Arg::new("duration")
@@ -332,14 +330,7 @@ impl CliConfig {
     }
 
     pub fn validate(&self) -> anyhow::Result<()> {
-        let valid_probe_types = [
-            "vfs_read",
-            "sys_enter_read",
-            "file_monitor",
-            "network_monitor",
-            "memory_monitor",
-            "all",
-        ];
+        let valid_probe_types = ["file_monitor", "network_monitor", "memory_monitor", "all"];
 
         if !valid_probe_types.contains(&self.probe_type.as_str()) {
             return Err(anyhow::anyhow!("Invalid probe type: {}", self.probe_type));
@@ -416,7 +407,7 @@ pub fn print_banner() {
 
 pub fn print_usage_examples() {
     println!("\nExamples:");
-    println!("  # Monitor file reads using VFS kprobe");
+    println!("  # Monitor file access and security events");
     println!("  bee-trace");
     println!();
     println!("  # Monitor all security events for 60 seconds");
@@ -450,7 +441,7 @@ mod tests {
         let app = CliApp::new();
         let matches = app
             .app
-            .try_get_matches_from(vec!["bee-trace", "--probe-type", "vfs_read"])
+            .try_get_matches_from(vec!["bee-trace", "--probe-type", "file_monitor"])
             .unwrap();
 
         let config = CliConfig::from_matches(&matches).unwrap();
@@ -514,7 +505,7 @@ mod tests {
     #[test]
     fn should_validate_severity_filters() {
         let config = CliConfig {
-            probe_type: "vfs_read".to_string(),
+            probe_type: "file_monitor".to_string(),
             duration: None,
             command_filter: None,
             verbose: false,
@@ -537,7 +528,7 @@ mod tests {
     #[test]
     fn should_filter_pids_correctly() {
         let mut config = CliConfig {
-            probe_type: "vfs_read".to_string(),
+            probe_type: "file_monitor".to_string(),
             duration: None,
             command_filter: None,
             verbose: false,
@@ -567,7 +558,7 @@ mod tests {
     #[test]
     fn should_filter_severity_correctly() {
         let config = CliConfig {
-            probe_type: "vfs_read".to_string(),
+            probe_type: "file_monitor".to_string(),
             duration: None,
             command_filter: None,
             verbose: false,

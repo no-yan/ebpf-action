@@ -1,4 +1,4 @@
-use bee_trace_common::{FileReadEvent, NetworkEvent, ProcessMemoryEvent, SecretAccessEvent};
+use bee_trace_common::{NetworkEvent, ProcessMemoryEvent, SecretAccessEvent};
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 
@@ -8,7 +8,6 @@ pub mod report;
 
 #[derive(Clone)]
 pub enum SecurityEvent {
-    FileRead(FileReadEvent),
     Network(NetworkEvent),
     SecretAccess(SecretAccessEvent),
     ProcessMemory(ProcessMemoryEvent),
@@ -17,7 +16,6 @@ pub enum SecurityEvent {
 impl SecurityEvent {
     pub fn pid(&self) -> u32 {
         match self {
-            SecurityEvent::FileRead(e) => e.pid,
             SecurityEvent::Network(e) => e.pid,
             SecurityEvent::SecretAccess(e) => e.pid,
             SecurityEvent::ProcessMemory(e) => e.pid,
@@ -26,7 +24,6 @@ impl SecurityEvent {
 
     pub fn command_as_str(&self) -> String {
         match self {
-            SecurityEvent::FileRead(e) => e.command_as_str().to_string(),
             SecurityEvent::Network(e) => e.command_as_str().to_string(),
             SecurityEvent::SecretAccess(e) => e.command_as_str().to_string(),
             SecurityEvent::ProcessMemory(e) => e.command_as_str().to_string(),
@@ -37,7 +34,7 @@ impl SecurityEvent {
 #[derive(Debug, Clone, Parser)]
 #[clap(name = "bee-trace", about = "eBPF security monitoring tool")]
 pub struct Args {
-    #[clap(short, long, default_value = "vfs_read")]
+    #[clap(short, long, default_value = "file_monitor")]
     pub probe_type: String,
 
     #[clap(short, long, help = "Duration to run the tracer in seconds")]
@@ -59,25 +56,9 @@ pub struct Args {
 impl Args {
     pub fn validate(&self) -> Result<(), String> {
         match self.probe_type.as_str() {
-            "vfs_read" | "sys_enter_read" | "file_monitor" | "network_monitor"
-            | "memory_monitor" | "all" => Ok(()),
+            "file_monitor" | "network_monitor" | "memory_monitor" | "all" => Ok(()),
             _ => Err(format!("Unsupported probe type: {}", self.probe_type)),
         }
-    }
-
-    pub fn should_filter_event(&self, event: &FileReadEvent) -> bool {
-        if let Some(cmd_filter) = &self.command {
-            let comm = event.command_as_str();
-            return comm.contains(cmd_filter);
-        }
-        true
-    }
-
-    pub fn should_show_event(&self, event: &FileReadEvent) -> bool {
-        if !self.verbose && (event.filename_as_str().is_empty()) {
-            return false;
-        }
-        true
     }
 
     pub fn should_filter_security_event(&self, event: &SecurityEvent) -> bool {
@@ -94,11 +75,8 @@ impl Args {
             return true;
         }
 
-        // For file events in legacy mode, apply original logic
-        match event {
-            SecurityEvent::FileRead(file_event) => self.should_show_event(file_event),
-            _ => true,
-        }
+        // Show all security events
+        true
     }
 }
 
@@ -318,17 +296,6 @@ impl EventFormatter {
         }
     }
 
-    pub fn legacy_header(&self) -> String {
-        if self.verbose {
-            format!(
-                "{:<8} {:<8} {:<16} {:<64}",
-                "PID", "UID", "COMMAND", "FILENAME"
-            )
-        } else {
-            format!("{:<8} {:<16} {:<48}", "PID", "COMMAND", "FILENAME")
-        }
-    }
-
     pub fn separator(&self) -> String {
         if self.verbose {
             "-".repeat(118)
@@ -337,57 +304,11 @@ impl EventFormatter {
         }
     }
 
-    pub fn legacy_separator(&self) -> String {
-        if self.verbose {
-            "-".repeat(106)
-        } else {
-            "-".repeat(74)
-        }
-    }
-
-    pub fn format_event(&self, event: &FileReadEvent) -> String {
-        let comm = event.command_as_str();
-        let filename = event.filename_as_str();
-
-        if self.verbose {
-            format!(
-                "{:<8} {:<8} {:<16} {:<64}",
-                event.pid, event.uid, comm, filename
-            )
-        } else {
-            let truncated_filename = if filename.len() > 48 {
-                format!("{}...", &filename[..45])
-            } else {
-                filename.to_string()
-            };
-            format!("{:<8} {:<16} {:<48}", event.pid, comm, truncated_filename)
-        }
-    }
-
     pub fn format_security_event(&self, event: &SecurityEvent) -> String {
         let pid = event.pid();
         let comm = event.command_as_str();
 
         match event {
-            SecurityEvent::FileRead(e) => {
-                let filename = e.filename_as_str();
-                if self.verbose {
-                    format!(
-                        "{:<8} {:<8} {:<16} {:<12} {:<64}",
-                        pid, e.uid, comm, "FILE_READ", filename
-                    )
-                } else {
-                    let truncated = if filename.len() > 48 {
-                        format!("{}...", &filename[..45])
-                    } else {
-                        filename.to_string()
-                    };
-                    format!(
-                        "{:<8} {:<16} {:<12} {:<48}",
-                        pid, comm, "FILE_READ", truncated
-                    )
-                }
-            }
             SecurityEvent::Network(e) => {
                 let details = format!(
                     "{}:{} ({})",
@@ -477,7 +398,7 @@ mod tests {
         #[test]
         fn should_accept_valid_probe_types() {
             let vfs_args = Args {
-                probe_type: "vfs_read".to_string(),
+                probe_type: "file_monitor".to_string(),
                 duration: None,
                 command: None,
                 verbose: false,
@@ -511,123 +432,6 @@ mod tests {
             let result = invalid_args.validate();
             assert!(result.is_err());
             assert!(result.unwrap_err().contains("Unsupported probe type"));
-        }
-    }
-
-    mod event_filtering {
-        use super::*;
-
-        #[test]
-        fn should_show_all_events_when_no_command_filter() {
-            let args = Args {
-                probe_type: "vfs_read".to_string(),
-                duration: None,
-                command: None,
-                verbose: false,
-                security_mode: false,
-                config: None,
-            };
-
-            let event = FileReadEvent::new()
-                .with_command(b"cat")
-                .with_filename(b"/etc/passwd");
-
-            assert!(args.should_filter_event(&event));
-        }
-
-        #[test]
-        fn should_filter_events_by_command() {
-            let args = Args {
-                probe_type: "vfs_read".to_string(),
-                duration: None,
-                command: Some("cat".to_string()),
-                verbose: false,
-                security_mode: false,
-                config: None,
-            };
-
-            let matching_event = FileReadEvent::new()
-                .with_command(b"cat")
-                .with_filename(b"/etc/passwd");
-            assert!(args.should_filter_event(&matching_event));
-
-            let non_matching_event = FileReadEvent::new()
-                .with_command(b"vim")
-                .with_filename(b"/etc/passwd");
-            assert!(!args.should_filter_event(&non_matching_event));
-        }
-
-        #[test]
-        fn should_filter_by_partial_command_match() {
-            let args = Args {
-                probe_type: "vfs_read".to_string(),
-                duration: None,
-                command: Some("cat".to_string()),
-                verbose: false,
-                security_mode: false,
-                config: None,
-            };
-
-            let event = FileReadEvent::new()
-                .with_command(b"concatenate")
-                .with_filename(b"/etc/passwd");
-
-            assert!(args.should_filter_event(&event));
-        }
-    }
-
-    mod event_visibility {
-        use super::*;
-
-        #[test]
-        fn should_show_all_events_in_verbose_mode() {
-            let args = Args {
-                probe_type: "vfs_read".to_string(),
-                duration: None,
-                command: None,
-                verbose: true,
-                security_mode: false,
-                config: None,
-            };
-
-            let empty_event = FileReadEvent::new();
-            assert!(args.should_show_event(&empty_event));
-
-            let zero_bytes_event = FileReadEvent::new().with_filename(b"/etc/passwd");
-            assert!(args.should_show_event(&zero_bytes_event));
-        }
-
-        #[test]
-        fn should_hide_empty_events_in_non_verbose_mode() {
-            let args = Args {
-                probe_type: "vfs_read".to_string(),
-                duration: None,
-                command: None,
-                verbose: false,
-                security_mode: false,
-                config: None,
-            };
-
-            let empty_filename_event = FileReadEvent::new();
-            assert!(!args.should_show_event(&empty_filename_event));
-
-            let valid_event = FileReadEvent::new().with_filename(b"/etc/passwd");
-            assert!(args.should_show_event(&valid_event));
-        }
-
-        #[test]
-        fn should_show_valid_events_in_non_verbose_mode() {
-            let args = Args {
-                probe_type: "vfs_read".to_string(),
-                duration: None,
-                command: None,
-                verbose: false,
-                security_mode: false,
-                config: None,
-            };
-
-            let valid_event = FileReadEvent::new().with_filename(b"/etc/passwd");
-            assert!(args.should_show_event(&valid_event));
         }
     }
 
@@ -665,70 +469,6 @@ mod tests {
 
             let non_verbose_formatter = EventFormatter::new(false);
             assert_eq!(non_verbose_formatter.separator().len(), 86);
-        }
-
-        #[test]
-        fn should_format_event_in_verbose_mode() {
-            let formatter = EventFormatter::new(true);
-            let event = FileReadEvent::new()
-                .with_pid(1234)
-                .with_uid(1000)
-                .with_command(b"cat")
-                .with_filename(b"/etc/passwd");
-
-            let formatted = formatter.format_event(&event);
-
-            assert!(formatted.contains("1234"));
-            assert!(formatted.contains("1000"));
-            assert!(formatted.contains("cat"));
-            assert!(formatted.contains("/etc/passwd"));
-        }
-
-        #[test]
-        fn should_format_event_in_non_verbose_mode() {
-            let formatter = EventFormatter::new(false);
-            let event = FileReadEvent::new()
-                .with_pid(1234)
-                .with_uid(1000)
-                .with_command(b"cat")
-                .with_filename(b"/etc/passwd");
-
-            let formatted = formatter.format_event(&event);
-
-            assert!(formatted.contains("1234"));
-            assert!(!formatted.contains("1000")); // UID not shown in non-verbose
-            assert!(formatted.contains("cat"));
-            assert!(formatted.contains("/etc/passwd"));
-        }
-
-        #[test]
-        fn should_truncate_long_filename_in_non_verbose_mode() {
-            let formatter = EventFormatter::new(false);
-            let long_filename = "a".repeat(60);
-            let event = FileReadEvent::new()
-                .with_pid(1234)
-                .with_command(b"cat")
-                .with_filename(long_filename.as_bytes());
-
-            let formatted = formatter.format_event(&event);
-
-            assert!(formatted.contains("..."));
-            assert!(formatted.len() <= 74); // Should not exceed expected width
-        }
-
-        #[test]
-        fn should_not_truncate_short_filename() {
-            let formatter = EventFormatter::new(false);
-            let short_filename = "/etc/passwd";
-            let event = FileReadEvent::new()
-                .with_pid(1234)
-                .with_command(b"cat")
-                .with_filename(short_filename.as_bytes());
-
-            let formatted = formatter.format_event(&event);
-
-            assert!(!formatted.contains("..."));
-            assert!(formatted.contains("/etc/passwd"));
         }
     }
 

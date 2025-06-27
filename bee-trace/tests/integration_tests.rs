@@ -9,7 +9,7 @@ mod cli_argument_parsing {
     fn should_parse_default_arguments() {
         let args = Args::try_parse_from(["bee-trace"]).unwrap();
 
-        assert_eq!(args.probe_type, "vfs_read");
+        assert_eq!(args.probe_type, "file_monitor");
         assert_eq!(args.duration, None);
         assert_eq!(args.command, None);
         assert!(!args.verbose);
@@ -19,16 +19,16 @@ mod cli_argument_parsing {
 
     #[test]
     fn should_parse_probe_type_argument() {
-        let args = Args::try_parse_from(["bee-trace", "--probe-type", "sys_enter_read"]).unwrap();
+        let args = Args::try_parse_from(["bee-trace", "--probe-type", "network_monitor"]).unwrap();
 
-        assert_eq!(args.probe_type, "sys_enter_read");
+        assert_eq!(args.probe_type, "network_monitor");
     }
 
     #[test]
     fn should_parse_short_probe_type_argument() {
-        let args = Args::try_parse_from(["bee-trace", "-p", "sys_enter_read"]).unwrap();
+        let args = Args::try_parse_from(["bee-trace", "-p", "memory_monitor"]).unwrap();
 
-        assert_eq!(args.probe_type, "sys_enter_read");
+        assert_eq!(args.probe_type, "memory_monitor");
     }
 
     #[test]
@@ -78,7 +78,7 @@ mod cli_argument_parsing {
         let args = Args::try_parse_from([
             "bee-trace",
             "--probe-type",
-            "sys_enter_read",
+            "all",
             "--duration",
             "120",
             "--command",
@@ -87,7 +87,7 @@ mod cli_argument_parsing {
         ])
         .unwrap();
 
-        assert_eq!(args.probe_type, "sys_enter_read");
+        assert_eq!(args.probe_type, "all");
         assert_eq!(args.duration, Some(120));
         assert_eq!(args.command, Some("python".to_string()));
         assert!(args.verbose);
@@ -196,25 +196,35 @@ mod end_to_end_scenarios {
 
     #[test]
     fn should_validate_probe_types() {
-        let valid_vfs = Args {
-            probe_type: "vfs_read".to_string(),
+        let valid_file = Args {
+            probe_type: "file_monitor".to_string(),
             duration: None,
             command: None,
             verbose: false,
             security_mode: false,
             config: None,
         };
-        assert!(valid_vfs.validate().is_ok());
+        assert!(valid_file.validate().is_ok());
 
-        let valid_syscall = Args {
-            probe_type: "sys_enter_read".to_string(),
+        let valid_network = Args {
+            probe_type: "network_monitor".to_string(),
             duration: None,
             command: None,
             verbose: false,
             security_mode: false,
             config: None,
         };
-        assert!(valid_syscall.validate().is_ok());
+        assert!(valid_network.validate().is_ok());
+
+        let valid_all = Args {
+            probe_type: "all".to_string(),
+            duration: None,
+            command: None,
+            verbose: false,
+            security_mode: false,
+            config: None,
+        };
+        assert!(valid_all.validate().is_ok());
 
         let invalid = Args {
             probe_type: "invalid_probe".to_string(),

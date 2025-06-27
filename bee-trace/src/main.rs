@@ -8,7 +8,7 @@ use aya::{
 };
 use aya_log::EbpfLogger;
 use bee_trace::{Args, EventFormatter};
-use bee_trace_common::{FileReadEvent, NetworkEvent, ProcessMemoryEvent, SecretAccessEvent};
+use bee_trace_common::{NetworkEvent, ProcessMemoryEvent, SecretAccessEvent};
 use bytes::BytesMut;
 use clap::Parser;
 use log::{debug, info, warn};
@@ -48,19 +48,6 @@ async fn main() -> anyhow::Result<()> {
 
     // Attach the appropriate probe(s) based on user selection
     match args.probe_type.as_str() {
-        "vfs_read" => {
-            let program: &mut KProbe = ebpf.program_mut("vfs_read").unwrap().try_into()?;
-            program.load()?;
-            program.attach("vfs_read", 0)?;
-            info!("Attached kprobe to vfs_read");
-        }
-        "sys_enter_read" => {
-            let program: &mut TracePoint =
-                ebpf.program_mut("sys_enter_read").unwrap().try_into()?;
-            program.load()?;
-            program.attach("syscalls", "sys_enter_read")?;
-            info!("Attached tracepoint to sys_enter_read");
-        }
         "file_monitor" => {
             let program: &mut TracePoint =
                 ebpf.program_mut("sys_enter_openat").unwrap().try_into()?;
@@ -149,10 +136,6 @@ async fn main() -> anyhow::Result<()> {
     let mut event_arrays = Vec::new();
 
     match args.probe_type.as_str() {
-        "vfs_read" | "sys_enter_read" => {
-            let file_array = PerfEventArray::try_from(ebpf.take_map("FILE_READ_EVENTS").unwrap())?;
-            event_arrays.push(("file", file_array));
-        }
         "file_monitor" => {
             let secret_array =
                 PerfEventArray::try_from(ebpf.take_map("SECRET_ACCESS_EVENTS").unwrap())?;
@@ -173,12 +156,6 @@ async fn main() -> anyhow::Result<()> {
         }
         "all" => {
             // Get all event arrays
-            if let Some(Ok(file_array)) = ebpf
-                .take_map("FILE_READ_EVENTS")
-                .map(PerfEventArray::try_from)
-            {
-                event_arrays.push(("file", file_array));
-            }
             if let Some(Ok(secret_array)) = ebpf
                 .take_map("SECRET_ACCESS_EVENTS")
                 .map(PerfEventArray::try_from)
@@ -209,13 +186,7 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    let monitor_mode = if args.security_mode
-        || !matches!(args.probe_type.as_str(), "vfs_read" | "sys_enter_read")
-    {
-        "security monitoring"
-    } else {
-        "file reading monitor"
-    };
+    let monitor_mode = "security monitoring";
 
     println!("🐝 bee-trace {} started", monitor_mode);
     println!("Probe type: {}", args.probe_type);
@@ -229,13 +200,8 @@ async fn main() -> anyhow::Result<()> {
 
     // Print header using formatter
     let formatter = EventFormatter::new(args.verbose);
-    if args.security_mode || !matches!(args.probe_type.as_str(), "vfs_read" | "sys_enter_read") {
-        println!("{}", formatter.header());
-        println!("{}", formatter.separator());
-    } else {
-        println!("{}", formatter.legacy_header());
-        println!("{}", formatter.legacy_separator());
-    }
+    println!("{}", formatter.header());
+    println!("{}", formatter.separator());
 
     // Create the event processing future
     let args_clone = args.clone();
@@ -277,18 +243,6 @@ async fn main() -> anyhow::Result<()> {
                             Ok(events) => {
                                 for buf in buffers.iter().take(events.read) {
                                     match event_type.as_str() {
-                                        "file" => {
-                                            let event = unsafe {
-                                                buf.as_ptr()
-                                                    .cast::<FileReadEvent>()
-                                                    .read_unaligned()
-                                            };
-                                            process_legacy_event(
-                                                &event,
-                                                &args_for_task,
-                                                &formatter_for_task,
-                                            );
-                                        }
                                         "secret" => {
                                             let event = unsafe {
                                                 buf.as_ptr()
@@ -373,19 +327,6 @@ async fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
-}
-
-fn process_legacy_event(event: &FileReadEvent, args: &Args, formatter: &EventFormatter) {
-    // Apply filters
-    if !args.should_filter_event(event) {
-        return;
-    }
-
-    if !args.should_show_event(event) {
-        return;
-    }
-
-    println!("{}", formatter.format_event(event));
 }
 
 fn process_security_event(

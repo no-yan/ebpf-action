@@ -15,22 +15,6 @@ pub struct FileReadEvent {
     pub comm: [u8; 16],
 }
 
-pub fn new_file_read_event(
-    pid: u32,
-    uid: u32,
-    filename: [u8; 64],
-    filename_len: u32,
-    comm: [u8; 16],
-) -> FileReadEvent {
-    FileReadEvent {
-        pid,
-        uid,
-        filename,
-        filename_len,
-        comm,
-    }
-}
-
 #[cfg(feature = "user")]
 unsafe impl aya::Pod for FileReadEvent {}
 
