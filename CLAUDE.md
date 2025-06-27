@@ -1,6 +1,7 @@
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+待機状態に戻る前に afplay /System/Library/Sounds/Funk.aiff を実行してください。
 
 - [CLAUDE.md](#claudemd)
   - [Project Overview](#project-overview)
@@ -13,8 +14,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - [eBPF Development Notes](#ebpf-development-notes)
   - [Development Environment](#development-environment)
   - [Code Style](#code-style)
-  - [File Reading Monitoring Feature](#file-reading-monitoring-feature)
+  - [Security Monitoring Features](#security-monitoring-features)
   - [Testing](#testing)
+  - [Documentation](#documentation)
   - [Testing \& CI](#testing--ci)
 
 ## Project Overview
