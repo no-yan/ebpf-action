@@ -313,7 +313,7 @@ impl EventFormatter {
                     "{}:{} ({})",
                     e.dest_ip_as_str(),
                     e.dest_port,
-                    if e.protocol == 0 { "TCP" } else { "UDP" }
+                    e.protocol_as_str()
                 );
                 if self.verbose {
                     format!(

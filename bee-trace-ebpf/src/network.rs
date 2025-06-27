@@ -6,7 +6,11 @@ use aya_ebpf::{
     EbpfContext,
 };
 use bee_trace_bindings::{sock, sock_common};
-use bee_trace_common::NetworkEvent;
+use bee_trace_common::{NetworkAction, NetworkEvent, NetworkProtocol};
+
+// Address family constants
+const AF_INET: i32 = 2;
+const AF_INET6: i32 = 10;
 
 #[map]
 static NETWORK_EVENTS: PerfEventArray<NetworkEvent> = PerfEventArray::new(0);
@@ -28,7 +32,7 @@ unsafe fn try_tcp_connect(ctx: ProbeContext) -> Result<u32, i64> {
 
     let sk_common: sock_common = bpf_probe_read_kernel(&(*sock).__sk_common as *const sock_common)?;
 
-    let family = sk_common.skc_family;
+    let family = i32::from(sk_common.skc_family);
     let mut event = NetworkEvent {
         pid: ctx.pid(),
         uid: ctx.uid(),
@@ -39,12 +43,12 @@ unsafe fn try_tcp_connect(ctx: ProbeContext) -> Result<u32, i64> {
             .__bindgen_anon_1
             .skc_dport
             .to_be(),
-        protocol: 0, // TCP
-        is_ipv6: if family == 10 { 1 } else { 0 },
-        action: 0,
+        protocol: NetworkProtocol::TCP,
+        is_ipv6: if family == AF_INET6 { 1 } else { 0 },
+        action: NetworkAction::Allowed,
     };
 
-    if family == 2 {
+    if family == AF_INET {
         // IPv4
         let dest_ip = sk_common
             .__bindgen_anon_1
@@ -56,9 +60,9 @@ unsafe fn try_tcp_connect(ctx: ProbeContext) -> Result<u32, i64> {
             .get(&sk_common.__bindgen_anon_1.__bindgen_anon_1.skc_daddr)
             .is_some()
         {
-            event.action = 1;
+            event.action = NetworkAction::Blocked;
         }
-    } else if family == 10 {
+    } else if family == AF_INET6 {
         // IPv6
         let dest_ip = sk_common.skc_v6_daddr.in6_u.u6_addr8;
         event.dest_ip.copy_from_slice(&dest_ip);
@@ -81,7 +85,7 @@ unsafe fn try_udp_sendmsg(ctx: ProbeContext) -> Result<u32, i64> {
 
     let sk_common: sock_common = bpf_probe_read_kernel(&(*sock).__sk_common as *const sock_common)?;
 
-    let family = sk_common.skc_family;
+    let family = i32::from(sk_common.skc_family);
     let mut event = NetworkEvent {
         pid: ctx.pid(),
         uid: ctx.uid(),
@@ -92,12 +96,12 @@ unsafe fn try_udp_sendmsg(ctx: ProbeContext) -> Result<u32, i64> {
             .__bindgen_anon_1
             .skc_dport
             .to_be(),
-        protocol: 1, // UDP
-        is_ipv6: if family == 10 { 1 } else { 0 },
-        action: 0,
+        protocol: NetworkProtocol::UDP,
+        is_ipv6: if family == AF_INET6 { 1 } else { 0 },
+        action: NetworkAction::Allowed,
     };
 
-    if family == 2 {
+    if family == AF_INET {
         // IPv4
         let dest_ip = sk_common
             .__bindgen_anon_1
@@ -109,9 +113,9 @@ unsafe fn try_udp_sendmsg(ctx: ProbeContext) -> Result<u32, i64> {
             .get(&sk_common.__bindgen_anon_1.__bindgen_anon_1.skc_daddr)
             .is_some()
         {
-            event.action = 1;
+            event.action = NetworkAction::Blocked;
         }
-    } else if family == 10 {
+    } else if family == AF_INET6 {
         // IPv6
         let dest_ip = sk_common.skc_v6_daddr.in6_u.u6_addr8;
         event.dest_ip.copy_from_slice(&dest_ip);
@@ -147,7 +151,7 @@ unsafe fn try_socket_connect(ctx: LsmContext) -> Result<i32, i64> {
         dest_port: 0,       // Would extract from socket address
         protocol: 0,        // Would determine from socket type
         is_ipv6: 0,
-        action: 0, // Would be determined based on blocklist
+        action: NetworkAction::Allowed, // Would be determined based on blocklist
     };
 
     NETWORK_EVENTS.output(&ctx, &event, 0);
