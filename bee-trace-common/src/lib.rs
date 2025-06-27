@@ -27,9 +27,9 @@ pub struct NetworkEvent {
     pub comm: [u8; 16],
     pub dest_ip: [u8; 16], // IPv4 or IPv6 address
     pub dest_port: u16,
-    pub protocol: NetworkProtocol,
+    pub protocol: u8, // Use NetworkProtocol enum in userspace
     pub is_ipv6: u8,
-    pub action: NetworkAction,
+    pub action: u8, // Use NetworkAction enum in userspace
 }
 
 #[cfg(feature = "user")]
@@ -43,9 +43,9 @@ impl NetworkEvent {
             comm: [0u8; 16],
             dest_ip: [0u8; 16],
             dest_port: 0,
-            protocol: NetworkProtocol::TCP,
+            protocol: 0, // NetworkProtocol::TCP
             is_ipv6: 0,
-            action: NetworkAction::Allowed,
+            action: 0, // NetworkAction::Allowed
         }
     }
 
@@ -83,22 +83,22 @@ impl NetworkEvent {
     }
 
     pub fn with_protocol_tcp(mut self) -> Self {
-        self.protocol = NetworkProtocol::TCP;
+        self.protocol = 0; // NetworkProtocol::TCP
         self
     }
 
     pub fn with_protocol_udp(mut self) -> Self {
-        self.protocol = NetworkProtocol::UDP;
+        self.protocol = 1; // NetworkProtocol::UDP
         self
     }
 
     pub fn with_action_allowed(mut self) -> Self {
-        self.action = NetworkAction::Allowed;
+        self.action = 0; // NetworkAction::Allowed
         self
     }
 
     pub fn with_action_blocked(mut self) -> Self {
-        self.action = NetworkAction::Blocked;
+        self.action = 1; // NetworkAction::Blocked
         self
     }
 
@@ -124,15 +124,17 @@ impl NetworkEvent {
 
     pub fn protocol_as_str(&self) -> &str {
         match self.protocol {
-            NetworkProtocol::TCP => "TCP",
-            NetworkProtocol::UDP => "UDP",
+            0 => "TCP",
+            1 => "UDP",
+            _ => "Unknown",
         }
     }
 
     pub fn action_as_str(&self) -> &str {
         match self.action {
-            NetworkAction::Allowed => "Allowed",
-            NetworkAction::Blocked => "Blocked",
+            0 => "Allowed",
+            1 => "Blocked",
+            _ => "Unknown",
         }
     }
 }
@@ -343,9 +345,9 @@ mod tests {
                 assert_eq!(event.pid, 0);
                 assert_eq!(event.uid, 0);
                 assert_eq!(event.dest_port, 0);
-                assert_eq!(event.protocol, NetworkProtocol::TCP);
+                assert_eq!(event.protocol, 0); // NetworkProtocol::TCP
                 assert_eq!(event.is_ipv6, 0);
-                assert_eq!(event.action, NetworkAction::Allowed);
+                assert_eq!(event.action, 0); // NetworkAction::Allowed
                 assert_eq!(event.command_as_str(), "");
             }
 
@@ -354,7 +356,7 @@ mod tests {
                 let event = NetworkEvent::default();
 
                 assert_eq!(event.pid, 0);
-                assert_eq!(event.protocol, NetworkProtocol::TCP);
+                assert_eq!(event.protocol, 0); // NetworkProtocol::TCP
             }
         }
 
@@ -371,8 +373,8 @@ mod tests {
 
                 assert_eq!(event.pid, 1234);
                 assert_eq!(event.dest_port, 443);
-                assert_eq!(event.protocol, NetworkProtocol::TCP);
-                assert_eq!(event.action, NetworkAction::Allowed);
+                assert_eq!(event.protocol, 0); // NetworkProtocol::TCP
+                assert_eq!(event.action, 0); // NetworkAction::Allowed
                 assert_eq!(event.protocol_as_str(), "TCP");
                 assert_eq!(event.action_as_str(), "Allowed");
             }
@@ -383,8 +385,8 @@ mod tests {
                     .with_protocol_udp()
                     .with_action_blocked();
 
-                assert_eq!(event.protocol, NetworkProtocol::UDP);
-                assert_eq!(event.action, NetworkAction::Blocked);
+                assert_eq!(event.protocol, 1); // NetworkProtocol::UDP
+                assert_eq!(event.action, 1); // NetworkAction::Blocked
                 assert_eq!(event.protocol_as_str(), "UDP");
                 assert_eq!(event.action_as_str(), "Blocked");
             }

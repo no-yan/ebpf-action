@@ -6,7 +6,7 @@ use aya_ebpf::{
     EbpfContext,
 };
 use bee_trace_bindings::{sock, sock_common};
-use bee_trace_common::{NetworkAction, NetworkEvent, NetworkProtocol};
+use bee_trace_common::NetworkEvent;
 
 // Address family constants
 const AF_INET: i32 = 2;
@@ -43,9 +43,9 @@ unsafe fn try_tcp_connect(ctx: ProbeContext) -> Result<u32, i64> {
             .__bindgen_anon_1
             .skc_dport
             .to_be(),
-        protocol: NetworkProtocol::TCP,
+        protocol: 0, // NetworkProtocol::TCP
         is_ipv6: if family == AF_INET6 { 1 } else { 0 },
-        action: NetworkAction::Allowed,
+        action: 0, // NetworkAction::Allowed
     };
 
     if family == AF_INET {
@@ -60,7 +60,7 @@ unsafe fn try_tcp_connect(ctx: ProbeContext) -> Result<u32, i64> {
             .get(&sk_common.__bindgen_anon_1.__bindgen_anon_1.skc_daddr)
             .is_some()
         {
-            event.action = NetworkAction::Blocked;
+            event.action = 1; // NetworkAction::Blocked
         }
     } else if family == AF_INET6 {
         // IPv6
@@ -96,9 +96,9 @@ unsafe fn try_udp_sendmsg(ctx: ProbeContext) -> Result<u32, i64> {
             .__bindgen_anon_1
             .skc_dport
             .to_be(),
-        protocol: NetworkProtocol::UDP,
+        protocol: 1, // NetworkProtocol::UDP
         is_ipv6: if family == AF_INET6 { 1 } else { 0 },
-        action: NetworkAction::Allowed,
+        action: 0, // NetworkAction::Allowed
     };
 
     if family == AF_INET {
@@ -113,7 +113,7 @@ unsafe fn try_udp_sendmsg(ctx: ProbeContext) -> Result<u32, i64> {
             .get(&sk_common.__bindgen_anon_1.__bindgen_anon_1.skc_daddr)
             .is_some()
         {
-            event.action = NetworkAction::Blocked;
+            event.action = 1; // NetworkAction::Blocked
         }
     } else if family == AF_INET6 {
         // IPv6
@@ -151,7 +151,7 @@ unsafe fn try_socket_connect(ctx: LsmContext) -> Result<i32, i64> {
         dest_port: 0,       // Would extract from socket address
         protocol: 0,        // Would determine from socket type
         is_ipv6: 0,
-        action: NetworkAction::Allowed, // Would be determined based on blocklist
+        action: 0, // NetworkAction::Allowed // Would be determined based on blocklist
     };
 
     NETWORK_EVENTS.output(&ctx, &event, 0);
