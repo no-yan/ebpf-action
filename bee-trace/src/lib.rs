@@ -4,6 +4,9 @@ use serde::{Deserialize, Serialize};
 
 pub mod cli;
 pub mod config;
+pub mod configuration;
+pub mod ebpf_manager;
+pub mod errors;
 pub mod report;
 
 #[derive(Clone)]

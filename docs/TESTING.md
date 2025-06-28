@@ -1,6 +1,6 @@
 # Testing Strategy for bee-trace
 
-This document outlines the comprehensive testing approach for the bee-trace eBPF security monitoring project, following t-wada's testing principles. The project includes 120+ tests covering all aspects of the security monitoring functionality.
+This document outlines the comprehensive testing approach for the bee-trace eBPF security monitoring project, following t-wada's testing principles and TDD methodology. The project includes 112+ tests covering the new loose coupling, high cohesion architecture.
 
 ## Testing Philosophy
 
@@ -27,37 +27,76 @@ bee-trace/
 └── bee-trace/
     ├── src/
     │   ├── lib.rs                 # Unit tests for business logic
-    │   └── config.rs              # Configuration system tests
+    │   ├── configuration/         # New unified configuration system
+    │   ├── ebpf_manager/         # New ProbeManager architecture
+    │   └── errors.rs             # Unified error handling
     └── tests/
-        ├── integration_tests.rs    # CLI and end-to-end scenarios
-        ├── functional_tests.rs     # Event processing workflows
-        ├── config_tests.rs         # Security configuration tests
-        └── test_helpers.rs         # Reusable test utilities
+        ├── integration_tests.rs           # CLI and end-to-end scenarios
+        ├── functional_tests.rs            # Event processing workflows
+        ├── config_tests.rs                # Legacy security configuration tests
+        ├── configuration_tests.rs         # New configuration system tests
+        ├── ebpf_integration_tests.rs      # eBPF management integration tests
+        ├── probe_manager_tests.rs         # ProbeManager trait tests
+        ├── tdd_methodology_validation.rs  # TDD pattern validation tests
+        └── test_helpers.rs                # Reusable test utilities
 ```
 
 ## Test Statistics
 
 | Component | Test Count | Coverage Focus |
 |-----------|------------|----------------|
-| bee-trace-common | 35 tests | Event structures, memory layout |
-| bee-trace (lib) | 28 tests | Business logic, formatting |
-| bee-trace (integration) | 28 tests | CLI argument parsing |
-| bee-trace (functional) | 14 tests | Event processing workflows |
-| bee-trace (config) | 11 tests | Security configuration |
-| bee-trace-ebpf | 4 tests | eBPF structure validation |
-| **Total** | **120 tests** | **Comprehensive coverage** |
+| bee-trace-common | 16 tests | Event structures, memory layout |
+| bee-trace (lib) | 46 tests | Business logic, formatting, new architecture |
+| bee-trace (integration) | 17 tests | CLI argument parsing |
+| bee-trace (functional) | 5 tests | Event processing workflows |
+| bee-trace (config) | 11 tests | Legacy security configuration |
+| bee-trace (configuration) | 11 tests | New unified configuration system |
+| bee-trace (ebpf_integration) | 8 tests | eBPF management integration |
+| bee-trace (probe_manager) | 9 tests | ProbeManager trait implementation |
+| bee-trace (test_helpers) | 4 tests | Test utilities and builders |
+| bee-trace-ebpf | 0 tests | eBPF structure validation |
+| **Total** | **127 tests** | **Comprehensive coverage with new architecture** |
 
 ## Test Categories
 
-### 1. Unit Tests (`bee-trace-common/src/lib.rs`)
+### 1. New Architecture Tests
+
+#### A. Configuration System Tests (`bee-trace/tests/configuration_tests.rs`)
+
+**Purpose**: Test the new unified configuration system following TDD principles.
+
+**Test Modules**:
+- `configuration_builder_tests` - Builder pattern with CLI argument parsing
+- `configuration_validation_tests` - Validation and error handling
+- `configuration_integration_tests` - Multiple source integration and backward compatibility
+
+#### B. eBPF Manager Tests (`bee-trace/tests/probe_manager_tests.rs` + `ebpf_integration_tests.rs`)
+
+**Purpose**: Test the ProbeManager trait interface and eBPF integration layer.
+
+**Test Modules**:
+- `probe_manager_basic_operations` - Attach/detach lifecycle management
+- `probe_manager_error_handling` - Error scenarios and state consistency
+- `ebpf_application_tests` - EbpfApplication coordination layer
+- `configuration_integration_tests` - Configuration + ProbeManager integration
+
+#### C. TDD Methodology Validation (`bee-trace/tests/tdd_methodology_validation.rs`)
+
+**Purpose**: Validate TDD patterns and architecture quality metrics.
+
+**Test Modules**:
+- `mock_interface_pattern` - Mock vs real implementation behavioral equivalence
+- `configuration_builder_pattern` - Builder pattern validation
+- `architecture_quality_validation` - Loose coupling and high cohesion metrics
+
+### 2. Legacy Event Structure Tests (`bee-trace-common/src/lib.rs`)
 
 **Purpose**: Test all security event data structures and their behavior in isolation.
 
 **Test Modules**:
-- `network_event_*` - NetworkEvent creation, IP handling, protocol validation
-- `secret_access_event_*` - SecretAccessEvent paths, environment variables
-- `process_memory_event_*` - ProcessMemoryEvent syscall types, target processes
-- `event_memory_layout` - Memory safety and size validation for eBPF compatibility
+- `network_event_tests` - NetworkEvent creation, IP handling, protocol validation
+- `secret_access_event_tests` - SecretAccessEvent paths, environment variables
+- `process_memory_event_tests` - ProcessMemoryEvent syscall types, target processes
 
 **Key Test Examples**:
 ```rust
@@ -419,19 +458,27 @@ assert_eq!(processor.get_unique_event_types().len(), 2);
 
 ### Complete Test Suite
 ```bash
-# Run all 120+ tests
+# Run all 127+ tests
+just test
+# or
 cargo test
 
 # Run tests by component
-cargo test -p bee-trace-common    # Event structure tests (35 tests)
-cargo test --lib -p bee-trace     # Business logic tests (28 tests)
-cargo test --test integration_tests  # CLI integration tests (28 tests)
-cargo test --test functional_tests   # Event processing tests (14 tests)
-cargo test --test config_tests       # Security config tests (11 tests)
-cargo test -p bee-trace-ebpf      # eBPF validation tests (4 tests)
+cargo test -p bee-trace-common              # Event structure tests (16 tests)
+cargo test --lib -p bee-trace               # Business logic tests (46 tests)
+cargo test --test integration_tests         # CLI integration tests (17 tests)
+cargo test --test functional_tests          # Event processing tests (5 tests)
+cargo test --test config_tests              # Legacy security config tests (11 tests)
+cargo test --test configuration_tests       # New configuration system tests (11 tests)
+cargo test --test ebpf_integration_tests    # eBPF management integration tests (8 tests)
+cargo test --test probe_manager_tests       # ProbeManager trait tests (9 tests)
+cargo test --test tdd_methodology_validation # TDD pattern validation tests (6 tests)
+cargo test --test test_helpers              # Test utilities tests (4 tests)
 
-# Run security-specific tests
-just test-security
+# Run architecture-specific tests
+cargo test configuration    # All configuration-related tests
+cargo test ebpf_manager     # All eBPF management tests
+cargo test probe_manager    # All ProbeManager tests
 
 # Run performance tests
 cargo test performance --release
