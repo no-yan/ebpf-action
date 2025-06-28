@@ -1,4 +1,4 @@
-# 🐝 bee-trace
+# 🐝 bee-trace (WIP)
 
 **eBPF-based Security Monitoring for GitHub Actions**
 
