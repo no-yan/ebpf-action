@@ -18,6 +18,7 @@ pub fn sys_enter_openat(ctx: TracePointContext) -> u32 {
     unsafe { try_sys_enter_openat(ctx) }.unwrap_or(1)
 }
 
+#[inline]
 unsafe fn try_sys_enter_openat(ctx: TracePointContext) -> Result<u32, i64> {
     // Get the filename from the tracepoint arguments
     let filename_ptr: *const u8 = ctx.read_at::<*const u8>(24)?;
@@ -37,7 +38,7 @@ unsafe fn try_sys_enter_openat(ctx: TracePointContext) -> Result<u32, i64> {
         .len() as u32;
 
     // Check if the file matches any watched patterns
-    if !is_sensitive_file(&filename_buf, filename_len) {
+    if !is_sensitive_file(&filename_buf, filename_len.try_into().unwrap()) {
         return Ok(0);
     }
 
@@ -58,97 +59,43 @@ unsafe fn try_sys_enter_openat(ctx: TracePointContext) -> Result<u32, i64> {
     Ok(0)
 }
 
-unsafe fn is_sensitive_file(filename: &[u8; 128], len: u32) -> bool {
-    let filename_slice = &filename[..len.min(128) as usize];
-
-    // Check for common sensitive file patterns
-    if contains_pattern(filename_slice, b"credentials.json") {
-        return true;
-    }
-    if contains_pattern(filename_slice, b"id_rsa") {
-        return true;
-    }
-    if contains_pattern(filename_slice, b"id_dsa") {
-        return true;
-    }
-    if contains_pattern(filename_slice, b"id_ecdsa") {
-        return true;
-    }
-    if contains_pattern(filename_slice, b"id_ed25519") {
-        return true;
-    }
-    if contains_pattern(filename_slice, b".env") {
-        return true;
-    }
-    if contains_pattern(filename_slice, b"config.json") {
-        return true;
-    }
-    if contains_pattern(filename_slice, b"secrets.yaml") {
-        return true;
-    }
-    if contains_pattern(filename_slice, b"secrets.yml") {
-        return true;
-    }
-    if contains_pattern(filename_slice, b"private.key") {
-        return true;
-    }
-
-    // Check for files ending with common sensitive extensions
-    if ends_with(filename_slice, b".pem") {
-        return true;
-    }
-    if ends_with(filename_slice, b".key") {
-        return true;
-    }
-    if ends_with(filename_slice, b".p12") {
-        return true;
-    }
-    if ends_with(filename_slice, b".pfx") {
-        return true;
-    }
-    if ends_with(filename_slice, b".crt") {
-        return true;
-    }
-    if ends_with(filename_slice, b".cer") {
-        return true;
-    }
-    if ends_with(filename_slice, b".der") {
-        return true;
-    }
-
-    false
-}
-
-unsafe fn contains_pattern(haystack: &[u8], needle: &[u8]) -> bool {
-    if needle.len() > haystack.len() {
+#[inline(never)]
+unsafe fn is_sensitive_file(filename: &[u8; 128], len: usize) -> bool {
+    if len == 0 || len > 128 {
         return false;
     }
 
-    for i in 0..=(haystack.len() - needle.len()) {
-        let mut matches = true;
-        for j in 0..needle.len() {
-            if haystack[i + j] != needle[j] {
-                matches = false;
-                break;
+    if filename.starts_with(b"credentials.json")
+        | filename.starts_with(b"id_rsa")
+        | filename.starts_with(b"id_dsa")
+        | filename.starts_with(b"id_ecdsa")
+        | filename.starts_with(b"id_ed25519")
+        | filename.starts_with(b".env")
+        | filename.starts_with(b"config.json")
+        | filename.starts_with(b"secrerts.yaml")
+        | filename.starts_with(b"secrets.yml")
+        | filename.starts_with(b"private.key")
+    {
+        return true;
+    }
+
+    // Extension checks
+    if len >= 4 {
+        let start = len - 4;
+        if start < 124 {
+            let ext = &filename[start..start + 4];
+            if ext == b".pem"
+                || ext == b".key"
+                || ext == b".p12"
+                || ext == b".pfx"
+                || ext == b".crt"
+                || ext == b".cer"
+                || ext == b".der"
+            {
+                return true;
             }
         }
-        if matches {
-            return true;
-        }
     }
+
     false
-}
-
-unsafe fn ends_with(haystack: &[u8], needle: &[u8]) -> bool {
-    if needle.len() > haystack.len() {
-        return false;
-    }
-
-    let start = haystack.len() - needle.len();
-    for i in 0..needle.len() {
-        if haystack[start + i] != needle[i] {
-            return false;
-        }
-    }
-    true
 }
