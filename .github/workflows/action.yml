@@ -15,4 +15,4 @@ jobs:
           docker buildx bake --load
       - name: Run the image
         run: |
-          docker run --cap-add CAP_BPF myapp
+          docker run --privileged myapp
