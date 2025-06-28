@@ -20,8 +20,7 @@ bee-trace/
 ├── bee-trace-common/
 │   └── src/
 │       └── lib.rs                 # Unit tests for all event structures
-│                                  # FileReadEvent, NetworkEvent, 
-│                                  # SecretAccessEvent, ProcessMemoryEvent
+│                                  # NetworkEvent, SecretAccessEvent, ProcessMemoryEvent
 ├── bee-trace-ebpf/
 │   └── tests/
 │       └── ebpf_tests.rs          # eBPF structure and safety tests
@@ -55,8 +54,7 @@ bee-trace/
 **Purpose**: Test all security event data structures and their behavior in isolation.
 
 **Test Modules**:
-- `file_read_event_*` - FileReadEvent construction, builder pattern, string handling
-- `network_event_*` - NetworkEvent creation, IP handling, protocol validation  
+- `network_event_*` - NetworkEvent creation, IP handling, protocol validation
 - `secret_access_event_*` - SecretAccessEvent paths, environment variables
 - `process_memory_event_*` - ProcessMemoryEvent syscall types, target processes
 - `event_memory_layout` - Memory safety and size validation for eBPF compatibility
@@ -67,7 +65,7 @@ bee-trace/
 fn should_truncate_long_filename() {
     let long_filename = vec![b'a'; 100]; // Longer than 64 bytes
     let event = FileReadEvent::new().with_filename(&long_filename);
-    
+
     assert_eq!(event.filename_len, 64);
     assert_eq!(event.filename_as_str().len(), 64);
     assert!(event.filename_as_str().chars().all(|c| c == 'a'));
@@ -80,7 +78,7 @@ fn should_create_network_event_with_tcp_protocol() {
         .with_command(b"curl")
         .with_protocol_tcp()
         .with_dest_port(443);
-    
+
     assert_eq!(event.pid, 1234);
     assert_eq!(event.protocol, 0); // TCP
     assert_eq!(event.dest_port, 443);
@@ -92,7 +90,7 @@ fn should_handle_secret_access_event_path_truncation() {
     let long_path = "a".repeat(200);
     let event = SecretAccessEvent::new()
         .with_file_path(long_path.as_bytes());
-    
+
     assert_eq!(event.path_len, 128); // Max buffer size
     assert_eq!(event.path_or_var_as_str().len(), 128);
 }
@@ -118,13 +116,13 @@ fn should_format_security_event_in_verbose_mode() {
         .with_uid(1000)
         .with_command(b"curl")
         .with_dest_port(443);
-    
+
     let security_event = SecurityEvent::Network(network_event);
     let formatter = EventFormatter::new(true);
     let output = formatter.format_security_event(&security_event);
-    
+
     assert!(output.contains("1234"));      // PID
-    assert!(output.contains("1000"));      // UID  
+    assert!(output.contains("1000"));      // UID
     assert!(output.contains("curl"));      // Command
     assert!(output.contains("NETWORK"));   // Event type
     assert!(output.contains("443"));       // Port details
@@ -138,11 +136,11 @@ fn should_validate_enhanced_probe_types() {
         // ... other fields
     };
     assert!(security_args.validate().is_ok());
-    
+
     let network_args = Args {
         probe_type: "network_monitor".to_string(),
         security_mode: true,
-        // ... other fields  
+        // ... other fields
     };
     assert!(network_args.validate().is_ok());
 }
@@ -173,7 +171,7 @@ files:
 memory:
   secret_env_patterns: ["SECRET_*", "*_TOKEN"]
 "#;
-    
+
     let config: SecurityConfig = serde_yaml::from_str(yaml).unwrap();
     assert_eq!(config.network.blocked_ips.len(), 2);
     assert_eq!(config.files.watch_read.len(), 2);
@@ -186,7 +184,7 @@ fn should_handle_partial_config_with_defaults() {
 network:
   blocked_ips: ["1.2.3.4"]
 "#;
-    
+
     let config: SecurityConfig = serde_yaml::from_str(yaml).unwrap();
     assert_eq!(config.network.blocked_ips.len(), 1);
     assert!(config.files.watch_read.is_empty()); // Default
@@ -216,7 +214,7 @@ fn should_parse_security_monitoring_arguments() {
         "--duration", "300",
         "--verbose"
     ]).unwrap();
-    
+
     assert_eq!(args.probe_type, "all");
     assert!(args.security_mode);
     assert_eq!(args.config, Some(".github/security.yml".to_string()));
@@ -227,7 +225,7 @@ fn should_parse_security_monitoring_arguments() {
 #[test]
 fn should_validate_new_probe_types() {
     let probe_types = ["file_monitor", "network_monitor", "memory_monitor", "all"];
-    
+
     for probe_type in &probe_types {
         let args = Args {
             probe_type: probe_type.to_string(),
@@ -255,35 +253,34 @@ fn should_validate_new_probe_types() {
 #[test]
 fn should_handle_mixed_security_event_stream() {
     let processor = MockEventProcessor::new();
-    
+
     // Generate mixed security events
     let file_events = (0..100).map(|i| create_file_access_event(i));
     let network_events = (0..50).map(|i| create_network_event(i));
     let memory_events = (0..25).map(|i| create_memory_access_event(i));
-    
+
     // Process all event types
     for event in file_events.chain(network_events).chain(memory_events) {
         processor.process_mixed_event(event, &args, &formatter);
     }
-    
+
     assert_eq!(processor.get_total_events(), 175);
     assert!(processor.get_event_types().contains(&"FILE_READ"));
     assert!(processor.get_event_types().contains(&"NETWORK"));
     assert!(processor.get_event_types().contains(&"PROC_MEMORY"));
 }
 
-#[test]  
+#[test]
 fn should_filter_security_events_by_severity() {
     let processor = MockEventProcessor::new();
     let high_severity_event = create_secret_access_event("id_rsa");
-    let low_severity_event = create_file_read_event("/tmp/cache");
-    
+
     processor.process_security_event(&high_severity_event, &args, &formatter);
     processor.process_security_event(&low_severity_event, &args, &formatter);
-    
+
     let high_severity_count = processor.get_events_by_severity("high").len();
     let low_severity_count = processor.get_events_by_severity("low").len();
-    
+
     assert_eq!(high_severity_count, 1);
     assert_eq!(low_severity_count, 1);
 }
@@ -304,7 +301,7 @@ fn should_filter_security_events_by_severity() {
 #[test]
 fn should_validate_all_security_event_sizes() {
     assert!(core::mem::size_of::<FileReadEvent>() <= 128);
-    assert!(core::mem::size_of::<NetworkEvent>() <= 128); 
+    assert!(core::mem::size_of::<NetworkEvent>() <= 128);
     assert!(core::mem::size_of::<SecretAccessEvent>() <= 256);
     assert!(core::mem::size_of::<ProcessMemoryEvent>() <= 128);
 }
@@ -316,12 +313,12 @@ fn should_ensure_proper_alignment_for_ebpf() {
     assert_eq!(core::mem::align_of::<ProcessMemoryEvent>(), 4);
 }
 
-#[test]  
+#[test]
 fn should_validate_c_repr_compatibility() {
     // Ensure #[repr(C)] structures are properly laid out
     let network_event = NetworkEvent::new();
     let ptr = &network_event as *const _ as *const u8;
-    
+
     // Test that first field (pid) is at offset 0
     let pid_offset = &network_event.pid as *const _ as *const u8;
     assert_eq!(ptr, pid_offset);
@@ -339,7 +336,7 @@ let file_event = FileReadEventBuilder::new()
     .filename("/etc/passwd")
     .build();
 
-// Network events  
+// Network events
 let network_event = NetworkEventBuilder::new()
     .pid(5678)
     .command("curl")
@@ -391,7 +388,7 @@ use test_helpers::performance;
 fn should_meet_performance_benchmarks() {
     let tests = vec![
         performance::security_event_creation_performance(),
-        performance::multi_event_formatting_performance(), 
+        performance::multi_event_formatting_performance(),
         performance::config_parsing_performance(),
         performance::report_generation_performance(),
     ];
@@ -427,7 +424,7 @@ cargo test
 
 # Run tests by component
 cargo test -p bee-trace-common    # Event structure tests (35 tests)
-cargo test --lib -p bee-trace     # Business logic tests (28 tests) 
+cargo test --lib -p bee-trace     # Business logic tests (28 tests)
 cargo test --test integration_tests  # CLI integration tests (28 tests)
 cargo test --test functional_tests   # Event processing tests (14 tests)
 cargo test --test config_tests       # Security config tests (11 tests)
@@ -445,7 +442,7 @@ cargo test performance --release
 # Unit tests (data structures and business logic)
 cargo test -p bee-trace-common && cargo test --lib -p bee-trace
 
-# Integration tests (CLI and workflows)  
+# Integration tests (CLI and workflows)
 cargo test --test integration_tests --test functional_tests
 
 # System tests (eBPF and configuration)
@@ -526,11 +523,11 @@ test_event()
 ```rust
 // Specific assertions with clear failure messages
 assert_eq!(event.pid, expected_pid, "PID should match the process that accessed the file");
-assert!(event.filename_as_str().contains("credentials"), 
+assert!(event.filename_as_str().contains("credentials"),
     "Event should capture access to credential files");
 
 // Test behavior, not implementation
-assert!(processor.detected_high_severity_event(), 
+assert!(processor.detected_high_severity_event(),
     "Processor should classify SSH key access as high severity");
 
 // Multiple related assertions grouped logically
@@ -545,17 +542,17 @@ assert!(report.events.iter().any(|e| e.severity == "high"));
 #[test]
 fn should_handle_invalid_security_config_gracefully() {
     let invalid_yaml = "invalid: [unclosed array";
-    
+
     let result = SecurityConfig::from_yaml(invalid_yaml);
-    
+
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("YAML parse error"));
 }
 
-#[test]  
+#[test]
 fn should_provide_defaults_for_missing_config_sections() {
     let minimal_config = SecurityConfig::from_yaml("network: {}").unwrap();
-    
+
     // Should not panic and should provide sensible defaults
     assert!(minimal_config.files.watch_read.is_empty());
     assert!(minimal_config.memory.secret_env_patterns.is_empty());

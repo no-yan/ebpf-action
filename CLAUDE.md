@@ -1,6 +1,7 @@
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+待機状態に戻る前に afplay /System/Library/Sounds/Funk.aiff を実行してください。
 
 - [CLAUDE.md](#claudemd)
   - [Project Overview](#project-overview)
@@ -13,8 +14,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - [eBPF Development Notes](#ebpf-development-notes)
   - [Development Environment](#development-environment)
   - [Code Style](#code-style)
-  - [File Reading Monitoring Feature](#file-reading-monitoring-feature)
+  - [Security Monitoring Features](#security-monitoring-features)
   - [Testing](#testing)
+  - [Documentation](#documentation)
   - [Testing \& CI](#testing--ci)
 
 ## Project Overview
@@ -110,55 +112,64 @@ The project uses rustfmt with custom configuration:
 - Import reordering enabled
 - Unstable rustfmt features enabled
 
-## File Reading Monitoring Feature
+## Security Monitoring Features
 
-The project now includes a comprehensive file reading monitoring system:
+The project provides comprehensive eBPF-based security monitoring:
 
 **Core Functionality:**
-- Monitors file read operations at the VFS layer using kprobes
-- Alternative syscall tracing via tracepoints
+- File access monitoring for sensitive files and secrets
+- Network connection tracking (TCP/UDP)
+- Process memory access detection (ptrace, process_vm_readv)
+- Environment variable access monitoring
 - Real-time event streaming via perf event arrays
 - Command-line filtering and configuration options
 
 **Usage Examples:**
 ```bash
-# Monitor file reads using VFS kprobe (default)
+# Monitor file access and security events (default)
 cargo run --release --config 'target."cfg(all())".runner="sudo -E"'
 
-# Monitor syscall reads using tracepoints
-cargo run --release --config 'target."cfg(all())".runner="sudo -E"' -- --probe-type sys_enter_read
+# Monitor network connections only
+cargo run --release --config 'target."cfg(all())".runner="sudo -E"' -- --probe-type network_monitor
+
+# Monitor memory access events
+cargo run --release --config 'target."cfg(all())".runner="sudo -E"' -- --probe-type memory_monitor
+
+# Enable all monitoring capabilities
+cargo run --release --config 'target."cfg(all())".runner="sudo -E"' -- --probe-type all
 
 # Run for specific duration
 cargo run --release --config 'target."cfg(all())".runner="sudo -E"' -- --duration 30
 
 # Filter by process name
-cargo run --release --config 'target."cfg(all())".runner="sudo -E"' -- --command "cat"
+cargo run --release --config 'target."cfg(all())".runner="sudo -E"' -- --command "nginx"
 
 # Verbose output showing UIDs
 cargo run --release --config 'target."cfg(all())".runner="sudo -E"' -- --verbose
 ```
 
 **Command Line Options:**
-- `--probe-type`: Choose between "vfs_read" (kprobe) or "sys_enter_read" (tracepoint)
+- `--probe-type`: Choose between "file_monitor", "network_monitor", "memory_monitor", or "all"
 - `--duration`: Run for specified seconds, otherwise runs until Ctrl+C
 - `--command`: Filter events by process name substring
 - `--verbose`: Show additional details including UIDs
+- `--security-mode`: Enable enhanced security event classification
 
 **Implementation Details:**
-- eBPF programs in `bee-trace-ebpf/src/lsm.rs` with kprobe and tracepoint handlers
-- Shared event structure in `bee-trace-common/src/lib.rs` (64-byte filename limit for BPF stack efficiency)
+- eBPF programs in `bee-trace-ebpf/src/` modules (file_monitor, network, memory)
+- Multiple event structures in `bee-trace-common/src/lib.rs` for different event types
 - Userspace processing handles multiple CPU perf buffers concurrently
-- Per-CPU path buffer reduces eBPF stack usage for path resolution
+- Security-focused event classification and severity assessment
 
 ## Testing
 
 The project includes comprehensive tests following t-wada's testing principles:
 
 **Test Structure:**
-- `bee-trace-common/src/lib.rs` - Unit tests for FileReadEvent data structure
+- `bee-trace-common/src/lib.rs` - Unit tests for security event data structures
 - `bee-trace/src/lib.rs` - Unit tests for business logic (Args, EventFormatter, utilities)
 - `bee-trace/tests/integration_tests.rs` - CLI argument parsing and end-to-end scenarios
-- `bee-trace/tests/functional_tests.rs` - Event processing workflows and performance tests
+- `bee-trace/tests/functional_tests.rs` - Security event processing workflows and performance tests
 - `bee-trace-ebpf/tests/ebpf_tests.rs` - eBPF structure validation and memory safety tests
 - `bee-trace/tests/test_helpers.rs` - Reusable test utilities and builders
 
@@ -187,12 +198,13 @@ cargo test performance --release
 - Performance characteristics validation
 
 **Key Test Features:**
-- Mock event processors for testing workflows
-- Property-based test data generators
-- Scenario-based testing with pre-built test cases
+- Mock security event processors for testing workflows
+- Property-based test data generators for different event types
+- Scenario-based testing with pre-built security test cases
 - Memory safety validation for eBPF compatibility
 - String handling edge cases (UTF-8, truncation, null termination)
 - Cross-platform size and alignment validation
+- Security event classification and severity testing
 
 See `docs/TESTING.md` for comprehensive testing documentation.
 

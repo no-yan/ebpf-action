@@ -26,6 +26,7 @@ RUN rustup toolchain install nightly --component rust-src && \
 RUN --mount=type=bind,source=bee-trace,target=bee-trace \
     --mount=type=bind,source=bee-trace-common,target=bee-trace-common \
     --mount=type=bind,source=bee-trace-ebpf,target=bee-trace-ebpf \
+    --mount=type=bind,source=bee-trace-bindings,target=bee-trace-bindings \
     --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
     --mount=type=cache,target=/app/target/ \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
