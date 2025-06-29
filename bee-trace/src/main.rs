@@ -1,13 +1,11 @@
 use std::time::Duration;
 
-use aya::{maps::PerfEventArray, util::online_cpus, Ebpf};
+use aya::{maps::PerfEventArray, Ebpf};
 use aya_log::EbpfLogger;
 use bee_trace::{
     configuration::Configuration, ebpf_manager::EbpfApplication, Args, EventFormatter,
     TableFormatter,
 };
-use bee_trace_common::{NetworkEvent, ProcessMemoryEvent, SecretAccessEvent};
-use bytes::BytesMut;
 use clap::Parser;
 use log::{debug, info, warn};
 use tokio::{signal, time::timeout};
@@ -123,113 +121,9 @@ async fn main() -> anyhow::Result<()> {
     println!("{}", formatter.header());
     println!("{}", formatter.separator());
 
-    // Create the event processing future
+    // Create the event processing future using the new EventProcessor
     let config_clone = config.clone();
-    let event_processor = async move {
-        let cpus = match online_cpus() {
-            Ok(cpus) => cpus,
-            Err(e) => {
-                warn!("Failed to get online CPUs: {:?}", e);
-                return;
-            }
-        };
-
-        // Spawn tasks for each event array type
-        for (event_type, mut perf_array) in event_arrays {
-            for cpu_id in &cpus {
-                let mut buf = match perf_array.open(*cpu_id, None) {
-                    Ok(buf) => buf,
-                    Err(e) => {
-                        warn!(
-                            "Failed to open perf buffer for CPU {} ({}): {}",
-                            cpu_id, event_type, e
-                        );
-                        continue;
-                    }
-                };
-
-                let config_for_task = config_clone.clone();
-                let formatter_for_task = TableFormatter::new(config_for_task.is_verbose());
-                let event_type = event_type.to_string();
-
-                tokio::spawn(async move {
-                    let mut buffers = (0..10)
-                        .map(|_| BytesMut::with_capacity(1024))
-                        .collect::<Vec<_>>();
-
-                    loop {
-                        let events = buf.read_events(&mut buffers);
-                        match events {
-                            Ok(events) => {
-                                for buf in buffers.iter().take(events.read) {
-                                    match event_type.as_str() {
-                                        "secret" => {
-                                            let event = unsafe {
-                                                buf.as_ptr()
-                                                    .cast::<SecretAccessEvent>()
-                                                    .read_unaligned()
-                                            };
-                                            process_security_event(
-                                                &bee_trace::SecurityEvent::SecretAccess(event),
-                                                &config_for_task,
-                                                &formatter_for_task,
-                                            );
-                                        }
-                                        "network" => {
-                                            let event = unsafe {
-                                                buf.as_ptr().cast::<NetworkEvent>().read_unaligned()
-                                            };
-                                            process_security_event(
-                                                &bee_trace::SecurityEvent::Network(event),
-                                                &config_for_task,
-                                                &formatter_for_task,
-                                            );
-                                        }
-                                        "memory" => {
-                                            let event = unsafe {
-                                                buf.as_ptr()
-                                                    .cast::<ProcessMemoryEvent>()
-                                                    .read_unaligned()
-                                            };
-                                            process_security_event(
-                                                &bee_trace::SecurityEvent::ProcessMemory(event),
-                                                &config_for_task,
-                                                &formatter_for_task,
-                                            );
-                                        }
-                                        "env" => {
-                                            let event = unsafe {
-                                                buf.as_ptr()
-                                                    .cast::<SecretAccessEvent>()
-                                                    .read_unaligned()
-                                            };
-                                            process_security_event(
-                                                &bee_trace::SecurityEvent::SecretAccess(event),
-                                                &config_for_task,
-                                                &formatter_for_task,
-                                            );
-                                        }
-                                        _ => {
-                                            warn!("Unknown event type: {}", event_type);
-                                        }
-                                    }
-                                }
-                            }
-                            Err(e) => {
-                                warn!("Error reading perf events ({}): {}", event_type, e);
-                            }
-                        }
-                        tokio::task::yield_now().await;
-                    }
-                });
-            }
-        }
-
-        // Keep the main task alive
-        loop {
-            tokio::time::sleep(Duration::from_millis(100)).await;
-        }
-    };
+    let event_processor = process_events_with_extracted_logic(event_arrays, config_clone);
 
     // Handle duration or wait for Ctrl+C
     if let Some(duration_secs) = config.duration_secs() {
@@ -289,6 +183,86 @@ fn convert_args_to_configuration(args: &Args) -> anyhow::Result<Configuration> {
         .map_err(|e| anyhow::anyhow!("Failed to build configuration: {}", e))?;
 
     Ok(config)
+}
+
+/// Extracted event processing logic (Phase 5 refactoring)
+/// This replaces the 99-line monolithic async block with modular components
+async fn process_events_with_extracted_logic(
+    event_arrays: Vec<(&str, PerfEventArray<aya::maps::MapData>)>,
+    config: Configuration,
+) {
+    use bee_trace::event_processing::{PerfBufferManager, SecurityEventParser};
+
+    // Use the new PerfBufferManager for CPU coordination
+    let buffer_manager = match PerfBufferManager::new() {
+        Ok(manager) => manager,
+        Err(e) => {
+            warn!("Failed to initialize buffer manager: {}", e);
+            return;
+        }
+    };
+
+    let cpus = buffer_manager.online_cpus();
+    let _formatter = TableFormatter::new(config.is_verbose());
+
+    // Spawn tasks for each event array type
+    for (event_type, mut perf_array) in event_arrays {
+        for &cpu_id in cpus {
+            let mut buf = match perf_array.open(cpu_id, None) {
+                Ok(buf) => buf,
+                Err(e) => {
+                    warn!(
+                        "Failed to open perf buffer for CPU {} ({}): {}",
+                        cpu_id, event_type, e
+                    );
+                    continue;
+                }
+            };
+
+            let config_for_task = config.clone();
+            let formatter_for_task = TableFormatter::new(config_for_task.is_verbose());
+            let event_type = event_type.to_string();
+
+            tokio::spawn(async move {
+                // Use extracted buffer management
+                let buffers = PerfBufferManager::default().create_buffer_pool(1024, 10);
+                let mut buffers = buffers;
+
+                loop {
+                    let events = buf.read_events(&mut buffers);
+                    match events {
+                        Ok(events) => {
+                            for buf in buffers.iter().take(events.read) {
+                                // Use the new safe event parsing instead of unsafe operations
+                                match SecurityEventParser::parse_event_by_type(&event_type, buf) {
+                                    Ok(parsed_event) => {
+                                        let security_event = parsed_event.into_security_event();
+                                        process_security_event(
+                                            &security_event,
+                                            &config_for_task,
+                                            &formatter_for_task,
+                                        );
+                                    }
+                                    Err(e) => {
+                                        warn!("Failed to parse {} event: {}", event_type, e);
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            warn!("Error reading perf events ({}): {}", event_type, e);
+                        }
+                    }
+                    tokio::task::yield_now().await;
+                }
+            });
+        }
+    }
+
+    // Keep the main task alive
+    loop {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
 }
 
 fn process_security_event(

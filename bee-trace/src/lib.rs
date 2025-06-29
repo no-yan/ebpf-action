@@ -7,6 +7,7 @@ pub mod config;
 pub mod configuration;
 pub mod ebpf_manager;
 pub mod errors;
+pub mod event_processing;
 pub mod output_strategy;
 pub mod report;
 pub mod security_classifier;
