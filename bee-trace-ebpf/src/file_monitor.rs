@@ -27,10 +27,6 @@ unsafe fn try_sys_enter_openat(ctx: TracePointContext) -> Result<u32, i64> {
         return Ok(0);
     }
 
-    let Ok(comm) = ctx.command() else {
-        return Ok(0);
-    };
-
     // Read the filename from user space
     let mut filename_buf = [0u8; 128];
     let filename_len = bpf_probe_read_user_str_bytes(filename_ptr, &mut filename_buf)
@@ -42,11 +38,15 @@ unsafe fn try_sys_enter_openat(ctx: TracePointContext) -> Result<u32, i64> {
         return Ok(0);
     }
 
+    let Ok(comm) = ctx.command() else {
+        return Ok(0);
+    };
+
     let mut event = SecretAccessEvent {
         pid: ctx.pid(),
         uid: ctx.uid(),
         comm,
-        access_type: 0, // File access
+        access_type: bee_trace_common::AccessType::File,
         path_or_var: [0u8; 128],
         path_len: filename_len.min(128),
     };

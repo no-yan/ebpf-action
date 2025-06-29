@@ -1,4 +1,4 @@
-use bee_trace_common::{NetworkEvent, ProcessMemoryEvent, SecretAccessEvent};
+use bee_trace_common::{AccessType, NetworkEvent, ProcessMemoryEvent, SecretAccessEvent};
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +7,10 @@ pub mod config;
 pub mod configuration;
 pub mod ebpf_manager;
 pub mod errors;
+pub mod output_strategy;
 pub mod report;
+pub mod security_classifier;
+pub mod security_config;
 
 #[derive(Clone)]
 pub enum SecurityEvent {
@@ -18,19 +21,11 @@ pub enum SecurityEvent {
 
 impl SecurityEvent {
     pub fn pid(&self) -> u32 {
-        match self {
-            SecurityEvent::Network(e) => e.pid,
-            SecurityEvent::SecretAccess(e) => e.pid,
-            SecurityEvent::ProcessMemory(e) => e.pid,
-        }
+        Formattable::pid(self)
     }
 
     pub fn command_as_str(&self) -> String {
-        match self {
-            SecurityEvent::Network(e) => e.command_as_str().to_string(),
-            SecurityEvent::SecretAccess(e) => e.command_as_str().to_string(),
-            SecurityEvent::ProcessMemory(e) => e.command_as_str().to_string(),
-        }
+        Formattable::command(self)
     }
 }
 
@@ -275,16 +270,32 @@ impl SecurityReport {
     }
 }
 
-pub struct EventFormatter {
+pub trait Formattable {
+    fn event_type(&self) -> &str;
+    fn details(&self) -> String;
+    fn pid(&self) -> u32;
+    fn uid(&self) -> u32;
+    fn command(&self) -> String;
+}
+
+pub trait EventFormatter {
+    fn header(&self) -> String;
+    fn separator(&self) -> String;
+    fn format_event(&self, event: &dyn Formattable) -> String;
+}
+
+pub struct TableFormatter {
     verbose: bool,
 }
 
-impl EventFormatter {
+impl TableFormatter {
     pub fn new(verbose: bool) -> Self {
         Self { verbose }
     }
+}
 
-    pub fn header(&self) -> String {
+impl EventFormatter for TableFormatter {
+    fn header(&self) -> String {
         if self.verbose {
             format!(
                 "{:<8} {:<8} {:<16} {:<12} {:<64}",
@@ -298,7 +309,7 @@ impl EventFormatter {
         }
     }
 
-    pub fn separator(&self) -> String {
+    fn separator(&self) -> String {
         if self.verbose {
             "-".repeat(118)
         } else {
@@ -306,73 +317,86 @@ impl EventFormatter {
         }
     }
 
-    pub fn format_security_event(&self, event: &SecurityEvent) -> String {
-        let pid = event.pid();
-        let comm = event.command_as_str();
+    fn format_event(&self, event: &dyn Formattable) -> String {
+        let details = event.details();
+        if self.verbose {
+            format!(
+                "{:<8} {:<8} {:<16} {:<12} {:<64}",
+                event.pid(),
+                event.uid(),
+                event.command(),
+                event.event_type(),
+                details
+            )
+        } else {
+            let truncated_details = if details.len() > 48 {
+                format!("{}...", &details[..45])
+            } else {
+                details
+            };
+            format!(
+                "{:<8} {:<16} {:<12} {:<48}",
+                event.pid(),
+                event.command(),
+                event.event_type(),
+                truncated_details
+            )
+        }
+    }
+}
 
-        match event {
-            SecurityEvent::Network(e) => {
-                let details = format!(
-                    "{}:{} ({})",
-                    e.dest_ip_as_str(),
-                    e.dest_port,
-                    e.protocol_as_str()
-                );
-                if self.verbose {
-                    format!(
-                        "{:<8} {:<8} {:<16} {:<12} {:<64}",
-                        pid, e.uid, comm, "NETWORK", details
-                    )
-                } else {
-                    format!("{:<8} {:<16} {:<12} {:<48}", pid, comm, "NETWORK", details)
-                }
-            }
+impl Formattable for SecurityEvent {
+    fn event_type(&self) -> &str {
+        match self {
+            SecurityEvent::Network(_) => "NETWORK",
             SecurityEvent::SecretAccess(e) => {
-                let details = e.path_or_var_as_str();
-                let event_type = if e.access_type == 0 {
+                if e.access_type == AccessType::File {
                     "SECRET_FILE"
                 } else {
                     "SECRET_ENV"
-                };
-                if self.verbose {
-                    format!(
-                        "{:<8} {:<8} {:<16} {:<12} {:<64}",
-                        pid, e.uid, comm, event_type, details
-                    )
-                } else {
-                    let truncated = if details.len() > 48 {
-                        format!("{}...", &details[..45])
-                    } else {
-                        details.to_string()
-                    };
-                    format!(
-                        "{:<8} {:<16} {:<12} {:<48}",
-                        pid, comm, event_type, truncated
-                    )
                 }
             }
+            SecurityEvent::ProcessMemory(_) => "PROC_MEMORY",
+        }
+    }
+
+    fn details(&self) -> String {
+        match self {
+            SecurityEvent::Network(e) => format!(
+                "{}:{} ({})",
+                e.dest_ip_as_str(),
+                e.dest_port,
+                e.protocol_as_str()
+            ),
+            SecurityEvent::SecretAccess(e) => e.path_or_var_as_str().to_string(),
             SecurityEvent::ProcessMemory(e) => {
-                let details = format!(
-                    "target_pid:{} ({})",
-                    e.target_pid,
-                    if e.syscall_type == 0 {
-                        "ptrace"
-                    } else {
-                        "process_vm_readv"
-                    }
-                );
-                if self.verbose {
-                    format!(
-                        "{:<8} {:<8} {:<16} {:<12} {:<64}",
-                        pid, e.uid, comm, "PROC_MEMORY", details
-                    )
-                } else {
-                    format!(
-                        "{:<8} {:<16} {:<12} {:<48}",
-                        pid, comm, "PROC_MEMORY", details
-                    )
-                }
+                format!("target_pid:{} ({})", e.target_pid, e.syscall_type_as_str())
             }
+        }
+    }
+
+    fn pid(&self) -> u32 {
+        match self {
+            SecurityEvent::Network(e) => e.pid,
+            SecurityEvent::SecretAccess(e) => e.pid,
+            SecurityEvent::ProcessMemory(e) => e.pid,
+        }
+    }
+
+    fn uid(&self) -> u32 {
+        match self {
+            SecurityEvent::Network(e) => e.uid,
+            SecurityEvent::SecretAccess(e) => e.uid,
+            SecurityEvent::ProcessMemory(e) => e.uid,
+        }
+    }
+
+    fn command(&self) -> String {
+        use bee_trace_common::SecurityEventData;
+        match self {
+            SecurityEvent::Network(e) => e.command_as_str().to_string(),
+            SecurityEvent::SecretAccess(e) => e.command_as_str().to_string(),
+            SecurityEvent::ProcessMemory(e) => e.command_as_str().to_string(),
         }
     }
 }
@@ -439,10 +463,11 @@ mod tests {
 
     mod event_formatting {
         use super::*;
+        use bee_trace_common::{NetworkEvent, SecurityEventBuilder};
 
         #[test]
         fn should_format_header_for_verbose_mode() {
-            let formatter = EventFormatter::new(true);
+            let formatter = TableFormatter::new(true);
             let header = formatter.header();
 
             assert!(header.contains("PID"));
@@ -454,7 +479,7 @@ mod tests {
 
         #[test]
         fn should_format_header_for_non_verbose_mode() {
-            let formatter = EventFormatter::new(false);
+            let formatter = TableFormatter::new(false);
             let header = formatter.header();
 
             assert!(header.contains("PID"));
@@ -466,11 +491,28 @@ mod tests {
 
         #[test]
         fn should_provide_correct_separator_length() {
-            let verbose_formatter = EventFormatter::new(true);
+            let verbose_formatter = TableFormatter::new(true);
             assert_eq!(verbose_formatter.separator().len(), 118);
 
-            let non_verbose_formatter = EventFormatter::new(false);
+            let non_verbose_formatter = TableFormatter::new(false);
             assert_eq!(non_verbose_formatter.separator().len(), 86);
+        }
+
+        #[test]
+        fn should_format_security_event_with_trait() {
+            let formatter = TableFormatter::new(false);
+            let network_event = NetworkEvent::new()
+                .with_pid(1234)
+                .with_dest_port(443)
+                .with_command(b"curl");
+            let security_event = SecurityEvent::Network(network_event);
+
+            let formatted = formatter.format_event(&security_event);
+
+            assert!(formatted.contains("1234"));
+            assert!(formatted.contains("curl"));
+            assert!(formatted.contains("NETWORK"));
+            assert!(formatted.contains("443"));
         }
     }
 

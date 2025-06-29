@@ -3,7 +3,7 @@
 //! This module provides reusable test utilities that make tests more readable,
 //! maintainable, and focused on behavior rather than implementation details.
 
-use bee_trace_common::SecretAccessEvent;
+use bee_trace_common::{SecretAccessEvent, SecurityEventBuilder as CommonBuilder};
 
 /// Builder for creating test SecurityEvent instances with fluent API
 pub struct SecurityEventBuilder {
@@ -24,17 +24,17 @@ impl SecurityEventBuilder {
     }
 
     pub fn pid(mut self, pid: u32) -> Self {
-        self.event = self.event.with_pid(pid);
+        self.event = CommonBuilder::with_pid(self.event, pid);
         self
     }
 
     pub fn uid(mut self, uid: u32) -> Self {
-        self.event = self.event.with_uid(uid);
+        self.event = CommonBuilder::with_uid(self.event, uid);
         self
     }
 
     pub fn command(mut self, cmd: &str) -> Self {
-        self.event = self.event.with_command(cmd.as_bytes());
+        self.event = CommonBuilder::with_command(self.event, cmd.as_bytes());
         self
     }
 
@@ -267,7 +267,7 @@ pub mod scenarios {
 
 /// Utilities for testing formatting and output
 pub mod formatting {
-    use bee_trace::{EventFormatter, SecurityEvent};
+    use bee_trace::SecurityEvent;
 
     use super::*;
 
@@ -326,8 +326,9 @@ pub mod formatting {
     }
 
     pub fn verify_formatting_case(test_case: &FormattingTestCase) -> Result<(), String> {
-        let formatter = EventFormatter::new(test_case.verbose);
-        let output = formatter.format_security_event(&test_case.event);
+        use bee_trace::{EventFormatter, TableFormatter};
+        let formatter = TableFormatter::new(test_case.verbose);
+        let output = formatter.format_event(&test_case.event);
 
         // Check required contents
         for expected in &test_case.expected_contains {
@@ -417,8 +418,9 @@ pub mod performance {
             operation: Box::new(|| {
                 let event =
                     bee_trace::SecurityEvent::SecretAccess(events::typical_cat_reading_passwd());
-                let formatter = bee_trace::EventFormatter::new(false);
-                let _output = formatter.format_security_event(&event);
+                let formatter = bee_trace::TableFormatter::new(false);
+                use bee_trace::EventFormatter;
+                let _output = formatter.format_event(&event);
             }),
             iterations: 10_000,
             max_duration: Duration::from_millis(50),
@@ -429,6 +431,7 @@ pub mod performance {
         PerformanceTest {
             name: "string_conversion",
             operation: Box::new(|| {
+                use bee_trace_common::SecurityEventData;
                 let event = events::with_very_long_path();
                 let _path = event.path_or_var_as_str();
                 let _command = event.command_as_str();
@@ -548,6 +551,7 @@ mod helper_tests {
 
     #[test]
     fn event_builder_should_create_valid_events() {
+        use bee_trace_common::SecurityEventData;
         let event = SecurityEventBuilder::new()
             .pid(1234)
             .command("test")

@@ -5,6 +5,18 @@ extern crate std;
 #[cfg(test)]
 use std::vec;
 
+pub trait SecurityEventBuilder: Sized {
+    fn with_pid(self, pid: u32) -> Self;
+    fn with_uid(self, uid: u32) -> Self;
+    fn with_command(self, command: &[u8]) -> Self;
+}
+
+pub trait SecurityEventData {
+    fn pid(&self) -> u32;
+    fn uid(&self) -> u32;
+    fn command_as_str(&self) -> &str;
+}
+
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum NetworkProtocol {
@@ -35,6 +47,43 @@ pub struct NetworkEvent {
 #[cfg(feature = "user")]
 unsafe impl aya::Pod for NetworkEvent {}
 
+impl SecurityEventBuilder for NetworkEvent {
+    fn with_pid(mut self, pid: u32) -> Self {
+        self.pid = pid;
+        self
+    }
+
+    fn with_uid(mut self, uid: u32) -> Self {
+        self.uid = uid;
+        self
+    }
+
+    fn with_command(mut self, command: &[u8]) -> Self {
+        let copy_len = command.len().min(self.comm.len());
+        self.comm[..copy_len].copy_from_slice(&command[..copy_len]);
+        self
+    }
+}
+
+impl SecurityEventData for NetworkEvent {
+    fn pid(&self) -> u32 {
+        self.pid
+    }
+
+    fn uid(&self) -> u32 {
+        self.uid
+    }
+
+    fn command_as_str(&self) -> &str {
+        let end = self
+            .comm
+            .iter()
+            .position(|&b| b == 0)
+            .unwrap_or(self.comm.len());
+        core::str::from_utf8(&self.comm[..end]).unwrap_or("<invalid>")
+    }
+}
+
 impl NetworkEvent {
     pub fn new() -> Self {
         Self {
@@ -47,22 +96,6 @@ impl NetworkEvent {
             is_ipv6: 0,
             action: 0, // NetworkAction::Allowed
         }
-    }
-
-    pub fn with_pid(mut self, pid: u32) -> Self {
-        self.pid = pid;
-        self
-    }
-
-    pub fn with_uid(mut self, uid: u32) -> Self {
-        self.uid = uid;
-        self
-    }
-
-    pub fn with_command(mut self, command: &[u8]) -> Self {
-        let copy_len = command.len().min(self.comm.len());
-        self.comm[..copy_len].copy_from_slice(&command[..copy_len]);
-        self
     }
 
     pub fn with_dest_ipv4(mut self, ip: [u8; 4]) -> Self {
@@ -100,15 +133,6 @@ impl NetworkEvent {
     pub fn with_action_blocked(mut self) -> Self {
         self.action = 1; // NetworkAction::Blocked
         self
-    }
-
-    pub fn command_as_str(&self) -> &str {
-        let end = self
-            .comm
-            .iter()
-            .position(|&b| b == 0)
-            .unwrap_or(self.comm.len());
-        core::str::from_utf8(&self.comm[..end]).unwrap_or("<invalid>")
     }
 
     pub fn dest_ip_as_str(&self) -> &str {
@@ -151,13 +175,56 @@ pub struct SecretAccessEvent {
     pub pid: u32,
     pub uid: u32,
     pub comm: [u8; 16],
-    pub access_type: u8,        // 0 = file, 1 = env_var
+    pub access_type: AccessType,
     pub path_or_var: [u8; 128], // file path or environment variable name
     pub path_len: u32,
 }
 
+#[derive(Clone, Debug, PartialEq, Copy)]
+pub enum AccessType {
+    File = 0,
+    EnvVar = 1,
+}
+
 #[cfg(feature = "user")]
 unsafe impl aya::Pod for SecretAccessEvent {}
+
+impl SecurityEventBuilder for SecretAccessEvent {
+    fn with_pid(mut self, pid: u32) -> Self {
+        self.pid = pid;
+        self
+    }
+
+    fn with_uid(mut self, uid: u32) -> Self {
+        self.uid = uid;
+        self
+    }
+
+    fn with_command(mut self, command: &[u8]) -> Self {
+        let copy_len = command.len().min(self.comm.len());
+        self.comm[..copy_len].copy_from_slice(&command[..copy_len]);
+        self
+    }
+}
+
+impl SecurityEventData for SecretAccessEvent {
+    fn pid(&self) -> u32 {
+        self.pid
+    }
+
+    fn uid(&self) -> u32 {
+        self.uid
+    }
+
+    fn command_as_str(&self) -> &str {
+        let end = self
+            .comm
+            .iter()
+            .position(|&b| b == 0)
+            .unwrap_or(self.comm.len());
+        core::str::from_utf8(&self.comm[..end]).unwrap_or("<invalid>")
+    }
+}
 
 impl SecretAccessEvent {
     pub fn new() -> Self {
@@ -165,30 +232,14 @@ impl SecretAccessEvent {
             pid: 0,
             uid: 0,
             comm: [0u8; 16],
-            access_type: 0,
+            access_type: AccessType::File,
             path_or_var: [0u8; 128],
             path_len: 0,
         }
     }
 
-    pub fn with_pid(mut self, pid: u32) -> Self {
-        self.pid = pid;
-        self
-    }
-
-    pub fn with_uid(mut self, uid: u32) -> Self {
-        self.uid = uid;
-        self
-    }
-
-    pub fn with_command(mut self, command: &[u8]) -> Self {
-        let copy_len = command.len().min(self.comm.len());
-        self.comm[..copy_len].copy_from_slice(&command[..copy_len]);
-        self
-    }
-
     pub fn with_file_access(mut self, path: &[u8]) -> Self {
-        self.access_type = 0;
+        self.access_type = AccessType::File;
         let copy_len = path.len().min(self.path_or_var.len());
         self.path_or_var[..copy_len].copy_from_slice(&path[..copy_len]);
         self.path_len = copy_len as u32;
@@ -196,20 +247,11 @@ impl SecretAccessEvent {
     }
 
     pub fn with_env_var_access(mut self, var_name: &[u8]) -> Self {
-        self.access_type = 1;
+        self.access_type = AccessType::EnvVar;
         let copy_len = var_name.len().min(self.path_or_var.len());
         self.path_or_var[..copy_len].copy_from_slice(&var_name[..copy_len]);
         self.path_len = copy_len as u32;
         self
-    }
-
-    pub fn command_as_str(&self) -> &str {
-        let end = self
-            .comm
-            .iter()
-            .position(|&b| b == 0)
-            .unwrap_or(self.comm.len());
-        core::str::from_utf8(&self.comm[..end]).unwrap_or("<invalid>")
     }
 
     pub fn path_or_var_as_str(&self) -> &str {
@@ -219,9 +261,8 @@ impl SecretAccessEvent {
 
     pub fn access_type_as_str(&self) -> &str {
         match self.access_type {
-            0 => "File",
-            1 => "EnvVar",
-            _ => "Unknown",
+            AccessType::File => "File",
+            AccessType::EnvVar => "EnvVar",
         }
     }
 }
@@ -246,6 +287,43 @@ pub struct ProcessMemoryEvent {
 #[cfg(feature = "user")]
 unsafe impl aya::Pod for ProcessMemoryEvent {}
 
+impl SecurityEventBuilder for ProcessMemoryEvent {
+    fn with_pid(mut self, pid: u32) -> Self {
+        self.pid = pid;
+        self
+    }
+
+    fn with_uid(mut self, uid: u32) -> Self {
+        self.uid = uid;
+        self
+    }
+
+    fn with_command(mut self, command: &[u8]) -> Self {
+        let copy_len = command.len().min(self.comm.len());
+        self.comm[..copy_len].copy_from_slice(&command[..copy_len]);
+        self
+    }
+}
+
+impl SecurityEventData for ProcessMemoryEvent {
+    fn pid(&self) -> u32 {
+        self.pid
+    }
+
+    fn uid(&self) -> u32 {
+        self.uid
+    }
+
+    fn command_as_str(&self) -> &str {
+        let end = self
+            .comm
+            .iter()
+            .position(|&b| b == 0)
+            .unwrap_or(self.comm.len());
+        core::str::from_utf8(&self.comm[..end]).unwrap_or("<invalid>")
+    }
+}
+
 impl ProcessMemoryEvent {
     pub fn new() -> Self {
         Self {
@@ -256,22 +334,6 @@ impl ProcessMemoryEvent {
             target_comm: [0u8; 16],
             syscall_type: 0,
         }
-    }
-
-    pub fn with_pid(mut self, pid: u32) -> Self {
-        self.pid = pid;
-        self
-    }
-
-    pub fn with_uid(mut self, uid: u32) -> Self {
-        self.uid = uid;
-        self
-    }
-
-    pub fn with_command(mut self, command: &[u8]) -> Self {
-        let copy_len = command.len().min(self.comm.len());
-        self.comm[..copy_len].copy_from_slice(&command[..copy_len]);
-        self
     }
 
     pub fn with_target_pid(mut self, target_pid: u32) -> Self {
@@ -293,15 +355,6 @@ impl ProcessMemoryEvent {
     pub fn with_process_vm_readv(mut self) -> Self {
         self.syscall_type = 1;
         self
-    }
-
-    pub fn command_as_str(&self) -> &str {
-        let end = self
-            .comm
-            .iter()
-            .position(|&b| b == 0)
-            .unwrap_or(self.comm.len());
-        core::str::from_utf8(&self.comm[..end]).unwrap_or("<invalid>")
     }
 
     pub fn target_command_as_str(&self) -> &str {
@@ -446,7 +499,7 @@ mod tests {
 
                 assert_eq!(event.pid, 0);
                 assert_eq!(event.uid, 0);
-                assert_eq!(event.access_type, 0);
+                assert_eq!(event.access_type, AccessType::File);
                 assert_eq!(event.path_len, 0);
                 assert_eq!(event.command_as_str(), "");
                 assert_eq!(event.path_or_var_as_str(), "");
@@ -464,7 +517,7 @@ mod tests {
                     .with_file_access(file_path);
 
                 assert_eq!(event.pid, 1234);
-                assert_eq!(event.access_type, 0); // File access
+                assert_eq!(event.access_type, AccessType::File);
                 assert_eq!(event.path_len, file_path.len() as u32);
                 assert_eq!(event.path_or_var_as_str(), "/etc/passwd");
                 assert_eq!(event.access_type_as_str(), "File");
@@ -475,7 +528,7 @@ mod tests {
                 let var_name = b"SECRET_API_KEY";
                 let event = SecretAccessEvent::new().with_env_var_access(var_name);
 
-                assert_eq!(event.access_type, 1); // Environment variable access
+                assert_eq!(event.access_type, AccessType::EnvVar);
                 assert_eq!(event.path_len, var_name.len() as u32);
                 assert_eq!(event.path_or_var_as_str(), "SECRET_API_KEY");
                 assert_eq!(event.access_type_as_str(), "EnvVar");

@@ -1,4 +1,4 @@
-use bee_trace::{Args, EventFormatter, SecurityEvent};
+use bee_trace::{Args, SecurityEvent};
 use bee_trace_common::SecretAccessEvent;
 use clap::Parser;
 
@@ -165,26 +165,31 @@ mod probe_type_validation {
 
 mod security_event_integration {
     use super::*;
+    use bee_trace_common::SecurityEventBuilder;
 
     fn create_test_event() -> SecurityEvent {
-        let secret_event = SecretAccessEvent::new()
-            .with_pid(1234)
-            .with_uid(1000)
-            .with_command(b"cat")
-            .with_file_access(b"/etc/passwd");
+        let secret_event = SecurityEventBuilder::with_command(
+            SecurityEventBuilder::with_uid(
+                SecurityEventBuilder::with_pid(SecretAccessEvent::new(), 1234),
+                1000,
+            ),
+            b"cat",
+        )
+        .with_file_access(b"/etc/passwd");
         SecurityEvent::SecretAccess(secret_event)
     }
 
     #[test]
     fn should_process_valid_security_event() {
         let args = Args::try_parse_from(["bee-trace"]).unwrap();
-        let formatter = EventFormatter::new(args.verbose);
+        let formatter = bee_trace::TableFormatter::new(args.verbose);
         let event = create_test_event();
 
         assert!(args.should_filter_security_event(&event));
         assert!(args.should_show_security_event(&event));
 
-        let formatted = formatter.format_security_event(&event);
+        use bee_trace::EventFormatter;
+        let formatted = formatter.format_event(&event);
         assert!(formatted.contains("1234"));
         assert!(formatted.contains("cat"));
     }

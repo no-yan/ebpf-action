@@ -4,6 +4,7 @@ use aya::{maps::PerfEventArray, util::online_cpus, Ebpf};
 use aya_log::EbpfLogger;
 use bee_trace::{
     configuration::Configuration, ebpf_manager::EbpfApplication, Args, EventFormatter,
+    TableFormatter,
 };
 use bee_trace_common::{NetworkEvent, ProcessMemoryEvent, SecretAccessEvent};
 use bytes::BytesMut;
@@ -118,7 +119,7 @@ async fn main() -> anyhow::Result<()> {
     println!("Press Ctrl+C to exit\n");
 
     // Print header using formatter
-    let formatter = EventFormatter::new(config.is_verbose());
+    let formatter = TableFormatter::new(config.is_verbose());
     println!("{}", formatter.header());
     println!("{}", formatter.separator());
 
@@ -148,7 +149,7 @@ async fn main() -> anyhow::Result<()> {
                 };
 
                 let config_for_task = config_clone.clone();
-                let formatter_for_task = EventFormatter::new(config_for_task.is_verbose());
+                let formatter_for_task = TableFormatter::new(config_for_task.is_verbose());
                 let event_type = event_type.to_string();
 
                 tokio::spawn(async move {
@@ -293,7 +294,7 @@ fn convert_args_to_configuration(args: &Args) -> anyhow::Result<Configuration> {
 fn process_security_event(
     event: &bee_trace::SecurityEvent,
     config: &Configuration,
-    formatter: &EventFormatter,
+    formatter: &TableFormatter,
 ) {
     // Apply command filter
     if let Some(cmd_filter) = config.command_filter() {
@@ -306,6 +307,6 @@ fn process_security_event(
     // In security mode, show all events
     // Otherwise, show all events (keeping original behavior)
     if config.is_security_mode() {
-        println!("{}", formatter.format_security_event(event));
+        println!("{}", formatter.format_event(event));
     }
 }

@@ -1,6 +1,7 @@
 use std::{collections::HashMap, fs::File, io::Write, path::Path};
 
 use anyhow::Result;
+use bee_trace_common::AccessType;
 use chrono::{DateTime, Utc};
 
 use crate::{ReportEvent, SecurityEvent, SecurityReport};
@@ -117,7 +118,7 @@ impl ReportGenerator {
                 ),
             },
             SecurityEvent::SecretAccess(e) => {
-                let event_type = if e.access_type == 0 {
+                let event_type = if e.access_type == AccessType::File {
                     "SECRET_FILE"
                 } else {
                     "SECRET_ENV"
@@ -221,7 +222,7 @@ impl ReportStats {
 
 #[cfg(test)]
 mod tests {
-    use bee_trace_common::SecretAccessEvent;
+    use bee_trace_common::{SecretAccessEvent, SecurityEventBuilder};
 
     use super::*;
 
