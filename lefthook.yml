@@ -12,6 +12,7 @@ pre-commit:
     # Format check - ensure code is properly formatted
     format:
       tags: rust format
+      glob: "*.rs"
       run: cargo fmt --all -- --check
       fail_text: "Code formatting issues found. Run 'cargo fmt --all' to fix."
       stage_fixed: true
@@ -19,18 +20,21 @@ pre-commit:
     # Lint check - run clippy on all workspace packages
     lint:
       tags: rust lint
+      glob: "*.rs"
       run: cargo clippy -- -D warnings
       fail_text: "Linting issues found. Fix clippy warnings/errors."
 
     # Test suite - run tests for all workspace packages
     test:
       tags: rust test
+      glob: "*.rs"
       run: cargo test
       fail_text: "Tests failed. Fix failing tests before committing."
 
     # Build check - ensure all workspace packages build successfully
     build:
       tags: rust build
+      glob: "*.rs"
       run: cargo check
       fail_text: "Build failed. Fix compilation errors before committing."
 
@@ -40,5 +44,6 @@ pre-push:
     # Full build with release profile
     build-release:
       tags: rust build release
+      glob: "*.rs"
       run: cargo build
       fail_text: "Release build failed."
