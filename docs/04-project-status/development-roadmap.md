@@ -29,21 +29,17 @@ This roadmap integrates with the architecture refactoring work tracked in [rearc
 
 ### Current Priority Implementation Schedule
 
-#### Week 1-2: Critical Bug Fixes (Immediate)
-- **ProcessMemoryEvent target_comm fix** (Section 1.2)
-- **Basic error handling improvements** (Section 1.5)
-
-#### Week 3-4: Architecture Refactoring (Parallel with Foundation)
-- **Phase 5: Event Processing Separation** (detailed in [rearchitecture.md](rearchitecture.md))
+#### Phase 1: Development
+1. **Kernel requirements verification** (Section 1.3)
+2. **Raspberry Pi operation verification** (Section 1.1)
+3. **ProcessMemoryEvent target_comm fix** (Section 1.2)
+4. **Basic error handling improvements** (Section 1.5)
+5. **Phase 5: Event Processing Separation** (detailed in [rearchitecture.md](rearchitecture.md))
   - Priority: Critical for foundation stability
   - Blocks: Advanced reliability features
   - Impact: Enables cleaner testing and maintenance
 
-#### Week 5-6: Platform Verification (Post-Architecture)
-- **Raspberry Pi operation verification** (Section 1.1)
-- **Kernel requirements verification** (Section 1.3)
-
-#### Month 2: Production Readiness (After Phase 5 completion)
+#### Phase 2: Production Readiness
 - **Security audit implementation** (Section 1.4)
 - **Performance benchmarking** (Section 2.2)
 - **Containerization and CI/CD** (Section 3.1-3.2)
