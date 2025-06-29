@@ -3,8 +3,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use bee_trace::{Args, EventFormatter, SecurityEvent};
-use bee_trace_common::SecretAccessEvent;
+use bee_trace::{Args, EventFormatter, SecurityEvent, TableFormatter};
+use bee_trace_common::{SecretAccessEvent, SecurityEventBuilder};
 
 // Mock event processor for testing SecurityEvent processing
 struct MockSecurityEventProcessor {
@@ -18,7 +18,7 @@ impl MockSecurityEventProcessor {
         }
     }
 
-    fn process_event(&self, event: &SecurityEvent, args: &Args, formatter: &EventFormatter) {
+    fn process_event(&self, event: &SecurityEvent, args: &Args, formatter: &TableFormatter) {
         // Apply the same logic as the real processor
         if !args.should_filter_security_event(event) {
             return;
@@ -28,7 +28,7 @@ impl MockSecurityEventProcessor {
             return;
         }
 
-        let formatted = formatter.format_security_event(event);
+        let formatted = formatter.format_event(event);
         self.events.lock().unwrap().push_back(formatted);
     }
 
@@ -42,29 +42,38 @@ mod security_event_factory {
     use super::*;
 
     pub fn create_secret_file_access() -> SecurityEvent {
-        let event = SecretAccessEvent::new()
-            .with_pid(1234)
-            .with_uid(1000)
-            .with_command(b"cat")
-            .with_file_access(b"/etc/passwd");
+        let event = SecurityEventBuilder::with_command(
+            SecurityEventBuilder::with_uid(
+                SecurityEventBuilder::with_pid(SecretAccessEvent::new(), 1234),
+                1000,
+            ),
+            b"cat",
+        )
+        .with_file_access(b"/etc/passwd");
         SecurityEvent::SecretAccess(event)
     }
 
     pub fn create_env_var_access() -> SecurityEvent {
-        let event = SecretAccessEvent::new()
-            .with_pid(5678)
-            .with_uid(1001)
-            .with_command(b"env")
-            .with_env_var_access(b"SECRET_API_KEY");
+        let event = SecurityEventBuilder::with_command(
+            SecurityEventBuilder::with_uid(
+                SecurityEventBuilder::with_pid(SecretAccessEvent::new(), 5678),
+                1001,
+            ),
+            b"env",
+        )
+        .with_env_var_access(b"SECRET_API_KEY");
         SecurityEvent::SecretAccess(event)
     }
 
     pub fn create_config_file_access() -> SecurityEvent {
-        let event = SecretAccessEvent::new()
-            .with_pid(9999)
-            .with_uid(1000)
-            .with_command(b"vim")
-            .with_file_access(b"/home/user/.aws/credentials");
+        let event = SecurityEventBuilder::with_command(
+            SecurityEventBuilder::with_uid(
+                SecurityEventBuilder::with_pid(SecretAccessEvent::new(), 9999),
+                1000,
+            ),
+            b"vim",
+        )
+        .with_file_access(b"/home/user/.aws/credentials");
         SecurityEvent::SecretAccess(event)
     }
 }
@@ -85,7 +94,7 @@ mod security_event_processing {
             security_mode: true,
             config: None,
         };
-        let formatter = EventFormatter::new(false);
+        let formatter = TableFormatter::new(false);
 
         let events = vec![
             create_secret_file_access(),
@@ -120,7 +129,7 @@ mod security_event_processing {
             security_mode: true,
             config: None,
         };
-        let formatter = EventFormatter::new(false);
+        let formatter = TableFormatter::new(false);
 
         let events = vec![
             create_secret_file_access(),
@@ -148,7 +157,7 @@ mod security_event_processing {
             security_mode: true,
             config: None,
         };
-        let formatter = EventFormatter::new(false);
+        let formatter = TableFormatter::new(false);
 
         let events = vec![
             create_secret_file_access(),
@@ -174,15 +183,16 @@ mod security_event_processing {
             security_mode: true,
             config: None,
         };
-        let formatter = EventFormatter::new(false);
+        let formatter = TableFormatter::new(false);
 
         // Generate 100 security events
         let mut events = Vec::new();
         for i in 0..100 {
-            let event = SecretAccessEvent::new()
-                .with_pid(i)
-                .with_command(b"test")
-                .with_file_access(b"/etc/passwd");
+            let event = SecurityEventBuilder::with_command(
+                SecurityEventBuilder::with_pid(SecretAccessEvent::new(), i),
+                b"test",
+            )
+            .with_file_access(b"/etc/passwd");
             events.push(SecurityEvent::SecretAccess(event));
         }
 
@@ -218,7 +228,7 @@ mod performance_characteristics {
             security_mode: true,
             config: None,
         };
-        let formatter = EventFormatter::new(false);
+        let formatter = TableFormatter::new(false);
 
         // Create a realistic event
         let event = create_secret_file_access();

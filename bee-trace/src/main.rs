@@ -1,13 +1,11 @@
 use std::time::Duration;
 
-use aya::{
-    maps::PerfEventArray,
-    programs::{KProbe, TracePoint},
-    util::online_cpus,
-    Ebpf,
-};
+use aya::{maps::PerfEventArray, util::online_cpus, Ebpf};
 use aya_log::EbpfLogger;
-use bee_trace::{Args, EventFormatter};
+use bee_trace::{
+    configuration::Configuration, ebpf_manager::EbpfApplication, Args, EventFormatter,
+    TableFormatter,
+};
 use bee_trace_common::{NetworkEvent, ProcessMemoryEvent, SecretAccessEvent};
 use bytes::BytesMut;
 use clap::Parser;
@@ -23,6 +21,9 @@ async fn main() -> anyhow::Result<()> {
         eprintln!("Error: {}", e);
         std::process::exit(1);
     }
+
+    // Convert Args to new Configuration system
+    let config = convert_args_to_configuration(&args)?;
 
     env_logger::init();
 
@@ -46,165 +47,84 @@ async fn main() -> anyhow::Result<()> {
         warn!("failed to initialize eBPF logger: {e}");
     }
 
-    // Attach the appropriate probe(s) based on user selection
-    match args.probe_type.as_str() {
-        "file_monitor" => {
-            let program: &mut TracePoint =
-                ebpf.program_mut("sys_enter_openat").unwrap().try_into()?;
-            program.load()?;
-            program.attach("syscalls", "sys_enter_openat")?;
-            info!("Attached tracepoint to sys_enter_openat for file monitoring");
-        }
-        "network_monitor" => {
-            // Attach TCP connection monitoring
-            let tcp_program: &mut KProbe = ebpf.program_mut("tcp_connect").unwrap().try_into()?;
-            tcp_program.load()?;
-            tcp_program.attach("tcp_connect", 0)?;
-            info!("Attached kprobe to tcp_connect");
+    // Create and configure the eBPF application
+    let mut app = EbpfApplication::new(config);
 
-            // Attach UDP monitoring
-            let udp_program: &mut KProbe = ebpf.program_mut("udp_sendmsg").unwrap().try_into()?;
-            udp_program.load()?;
-            udp_program.attach("udp_sendmsg", 0)?;
-            info!("Attached kprobe to udp_sendmsg");
+    // Attach configured probes using the new architecture
+    app.attach_configured_probes(&mut ebpf)
+        .map_err(|e| anyhow::anyhow!("Failed to attach probes: {}", e))?;
 
-            // Note: LSM programs require special setup and are complex to attach properly
-            // For now, we'll skip LSM and focus on kprobes/tracepoints
-            info!("Network monitoring active (LSM socket_connect hook skipped for compatibility)");
-        }
-        "memory_monitor" => {
-            // Attach ptrace monitoring
-            let ptrace_program: &mut TracePoint =
-                ebpf.program_mut("sys_enter_ptrace").unwrap().try_into()?;
-            ptrace_program.load()?;
-            ptrace_program.attach("syscalls", "sys_enter_ptrace")?;
-            info!("Attached tracepoint to sys_enter_ptrace");
+    info!("✅ All configured probes attached successfully");
+    let summary = app.get_probe_summary();
+    info!(
+        "📊 Attached {} probe types: {:?}",
+        summary.attached_probe_types, summary.probe_types
+    );
 
-            // Attach process_vm_readv monitoring
-            let vm_program: &mut TracePoint = ebpf
-                .program_mut("sys_enter_process_vm_readv")
-                .unwrap()
-                .try_into()?;
-            vm_program.load()?;
-            vm_program.attach("syscalls", "sys_enter_process_vm_readv")?;
-            info!("Attached tracepoint to sys_enter_process_vm_readv");
-        }
-        "all" => {
-            // Attach all monitoring programs
-            // File monitoring
-            let file_program: &mut TracePoint =
-                ebpf.program_mut("sys_enter_openat").unwrap().try_into()?;
-            file_program.load()?;
-            file_program.attach("syscalls", "sys_enter_openat")?;
-            info!("Attached tracepoint to sys_enter_openat");
-
-            // Network monitoring
-            let tcp_program: &mut KProbe = ebpf.program_mut("tcp_connect").unwrap().try_into()?;
-            tcp_program.load()?;
-            tcp_program.attach("tcp_connect", 0)?;
-            info!("Attached kprobe to tcp_connect");
-
-            let udp_program: &mut KProbe = ebpf.program_mut("udp_sendmsg").unwrap().try_into()?;
-            udp_program.load()?;
-            udp_program.attach("udp_sendmsg", 0)?;
-            info!("Attached kprobe to udp_sendmsg");
-
-            // Memory monitoring
-            let ptrace_program: &mut TracePoint =
-                ebpf.program_mut("sys_enter_ptrace").unwrap().try_into()?;
-            ptrace_program.load()?;
-            ptrace_program.attach("syscalls", "sys_enter_ptrace")?;
-            info!("Attached tracepoint to sys_enter_ptrace");
-
-            let vm_program: &mut TracePoint = ebpf
-                .program_mut("sys_enter_process_vm_readv")
-                .unwrap()
-                .try_into()?;
-            vm_program.load()?;
-            vm_program.attach("syscalls", "sys_enter_process_vm_readv")?;
-            info!("Attached tracepoint to sys_enter_process_vm_readv");
-        }
-        _ => {
-            return Err(anyhow::anyhow!(
-                "Unsupported probe type: {}",
-                args.probe_type
-            ));
-        }
-    }
-
-    // Get the appropriate perf event arrays based on probe type
+    // Get the appropriate perf event arrays based on configuration
     let mut event_arrays = Vec::new();
+    let config = app.config();
 
-    match args.probe_type.as_str() {
-        "file_monitor" => {
-            let secret_array =
-                PerfEventArray::try_from(ebpf.take_map("SECRET_ACCESS_EVENTS").unwrap())?;
-            event_arrays.push(("secret", secret_array));
-        }
-        "network_monitor" => {
-            let network_array = PerfEventArray::try_from(ebpf.take_map("NETWORK_EVENTS").unwrap())?;
-            event_arrays.push(("network", network_array));
-        }
-        "memory_monitor" => {
-            let memory_array =
-                PerfEventArray::try_from(ebpf.take_map("PROCESS_MEMORY_EVENTS").unwrap())?;
-            event_arrays.push(("memory", memory_array));
-
-            // Also get environment access events
-            let env_array = PerfEventArray::try_from(ebpf.take_map("ENV_ACCESS_EVENTS").unwrap())?;
-            event_arrays.push(("env", env_array));
-        }
-        "all" => {
-            // Get all event arrays
-            if let Some(Ok(secret_array)) = ebpf
-                .take_map("SECRET_ACCESS_EVENTS")
-                .map(PerfEventArray::try_from)
-            {
-                event_arrays.push(("secret", secret_array));
+    // Initialize event arrays based on configured probe types
+    for &probe_type in &config.monitoring.probe_types {
+        match probe_type {
+            bee_trace::errors::ProbeType::FileMonitor => {
+                if let Some(Ok(secret_array)) = ebpf
+                    .take_map("SECRET_ACCESS_EVENTS")
+                    .map(PerfEventArray::try_from)
+                {
+                    event_arrays.push(("secret", secret_array));
+                    info!("📡 Initialized SECRET_ACCESS_EVENTS for file monitoring");
+                }
             }
-            if let Some(Ok(network_array)) = ebpf
-                .take_map("NETWORK_EVENTS")
-                .map(PerfEventArray::try_from)
-            {
-                event_arrays.push(("network", network_array));
+            bee_trace::errors::ProbeType::NetworkMonitor => {
+                if let Some(Ok(network_array)) = ebpf
+                    .take_map("NETWORK_EVENTS")
+                    .map(PerfEventArray::try_from)
+                {
+                    event_arrays.push(("network", network_array));
+                    info!("📡 Initialized NETWORK_EVENTS for network monitoring");
+                }
             }
-            if let Some(Ok(memory_array)) = ebpf
-                .take_map("PROCESS_MEMORY_EVENTS")
-                .map(PerfEventArray::try_from)
-            {
-                event_arrays.push(("memory", memory_array));
+            bee_trace::errors::ProbeType::MemoryMonitor => {
+                if let Some(Ok(memory_array)) = ebpf
+                    .take_map("PROCESS_MEMORY_EVENTS")
+                    .map(PerfEventArray::try_from)
+                {
+                    event_arrays.push(("memory", memory_array));
+                    info!("📡 Initialized PROCESS_MEMORY_EVENTS for memory monitoring");
+                }
+                // Also get environment access events for memory monitoring
+                if let Some(Ok(env_array)) = ebpf
+                    .take_map("ENV_ACCESS_EVENTS")
+                    .map(PerfEventArray::try_from)
+                {
+                    event_arrays.push(("env", env_array));
+                    info!("📡 Initialized ENV_ACCESS_EVENTS for environment monitoring");
+                }
             }
-            if let Some(Ok(env_array)) = ebpf
-                .take_map("ENV_ACCESS_EVENTS")
-                .map(PerfEventArray::try_from)
-            {
-                event_arrays.push(("env", env_array));
-            }
-        }
-        _ => {
-            return Err(anyhow::anyhow!("Unknown probe type for event arrays"));
         }
     }
 
     let monitor_mode = "security monitoring";
 
     println!("🐝 bee-trace {} started", monitor_mode);
-    println!("Probe type: {}", args.probe_type);
-    if let Some(cmd_filter) = &args.command {
+    println!("Probe types: {}", config.probe_type_legacy());
+    if let Some(cmd_filter) = config.command_filter() {
         println!("Filtering by command: {}", cmd_filter);
     }
-    if let Some(duration) = args.duration {
-        println!("Running for {} seconds", duration);
+    if let Some(duration_secs) = config.duration_secs() {
+        println!("Running for {} seconds", duration_secs);
     }
     println!("Press Ctrl+C to exit\n");
 
     // Print header using formatter
-    let formatter = EventFormatter::new(args.verbose);
+    let formatter = TableFormatter::new(config.is_verbose());
     println!("{}", formatter.header());
     println!("{}", formatter.separator());
 
     // Create the event processing future
-    let args_clone = args.clone();
+    let config_clone = config.clone();
     let event_processor = async move {
         let cpus = match online_cpus() {
             Ok(cpus) => cpus,
@@ -228,8 +148,8 @@ async fn main() -> anyhow::Result<()> {
                     }
                 };
 
-                let args_for_task = args_clone.clone();
-                let formatter_for_task = EventFormatter::new(args_for_task.verbose);
+                let config_for_task = config_clone.clone();
+                let formatter_for_task = TableFormatter::new(config_for_task.is_verbose());
                 let event_type = event_type.to_string();
 
                 tokio::spawn(async move {
@@ -251,7 +171,7 @@ async fn main() -> anyhow::Result<()> {
                                             };
                                             process_security_event(
                                                 &bee_trace::SecurityEvent::SecretAccess(event),
-                                                &args_for_task,
+                                                &config_for_task,
                                                 &formatter_for_task,
                                             );
                                         }
@@ -261,7 +181,7 @@ async fn main() -> anyhow::Result<()> {
                                             };
                                             process_security_event(
                                                 &bee_trace::SecurityEvent::Network(event),
-                                                &args_for_task,
+                                                &config_for_task,
                                                 &formatter_for_task,
                                             );
                                         }
@@ -273,7 +193,7 @@ async fn main() -> anyhow::Result<()> {
                                             };
                                             process_security_event(
                                                 &bee_trace::SecurityEvent::ProcessMemory(event),
-                                                &args_for_task,
+                                                &config_for_task,
                                                 &formatter_for_task,
                                             );
                                         }
@@ -285,7 +205,7 @@ async fn main() -> anyhow::Result<()> {
                                             };
                                             process_security_event(
                                                 &bee_trace::SecurityEvent::SecretAccess(event),
-                                                &args_for_task,
+                                                &config_for_task,
                                                 &formatter_for_task,
                                             );
                                         }
@@ -312,10 +232,10 @@ async fn main() -> anyhow::Result<()> {
     };
 
     // Handle duration or wait for Ctrl+C
-    if let Some(duration) = args.duration {
-        match timeout(Duration::from_secs(duration), event_processor).await {
+    if let Some(duration_secs) = config.duration_secs() {
+        match timeout(Duration::from_secs(duration_secs), event_processor).await {
             Ok(_) => {}
-            Err(_) => println!("\nTracing completed after {} seconds", duration),
+            Err(_) => println!("\nTracing completed after {} seconds", duration_secs),
         }
     } else {
         tokio::select! {
@@ -329,19 +249,64 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Convert legacy Args to new Configuration system
+fn convert_args_to_configuration(args: &Args) -> anyhow::Result<Configuration> {
+    let mut cli_args = vec![];
+
+    // Convert probe type
+    cli_args.push("--probe-type");
+    cli_args.push(&args.probe_type);
+
+    // Convert duration if present
+    let duration_str;
+    if let Some(duration) = args.duration {
+        cli_args.push("--duration");
+        duration_str = duration.to_string();
+        cli_args.push(&duration_str);
+    }
+
+    // Convert command filter if present
+    if let Some(ref command) = args.command {
+        cli_args.push("--command");
+        cli_args.push(command);
+    }
+
+    // Convert verbose flag
+    if args.verbose {
+        cli_args.push("--verbose");
+    }
+
+    // Convert security mode flag
+    if args.security_mode {
+        cli_args.push("--security-mode");
+    }
+
+    // Build configuration from CLI args
+    let config = Configuration::builder()
+        .from_cli_args(&cli_args)
+        .map_err(|e| anyhow::anyhow!("Failed to convert args to configuration: {}", e))?
+        .build()
+        .map_err(|e| anyhow::anyhow!("Failed to build configuration: {}", e))?;
+
+    Ok(config)
+}
+
 fn process_security_event(
     event: &bee_trace::SecurityEvent,
-    args: &Args,
-    formatter: &EventFormatter,
+    config: &Configuration,
+    formatter: &TableFormatter,
 ) {
-    // Apply filters
-    if !args.should_filter_security_event(event) {
-        return;
+    // Apply command filter
+    if let Some(cmd_filter) = config.command_filter() {
+        let comm = event.command_as_str();
+        if !comm.contains(cmd_filter) {
+            return;
+        }
     }
 
-    if !args.should_show_security_event(event) {
-        return;
+    // In security mode, show all events
+    // Otherwise, show all events (keeping original behavior)
+    if config.is_security_mode() {
+        println!("{}", formatter.format_event(event));
     }
-
-    println!("{}", formatter.format_security_event(event));
 }

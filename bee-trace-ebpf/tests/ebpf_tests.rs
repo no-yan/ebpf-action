@@ -386,13 +386,15 @@ mod ebpf_network_event_specifics {
 }
 
 mod ebpf_secret_access_event_specifics {
+    use bee_trace_common::AccessType;
+
     use super::*;
 
     #[test]
     fn should_handle_file_access_type() {
         let event = SecretAccessEvent::new().with_file_access(b"/etc/passwd");
 
-        assert_eq!(event.access_type, 0); // File access
+        assert_eq!(event.access_type, AccessType::File);
         assert_eq!(event.access_type_as_str(), "File");
     }
 
@@ -400,7 +402,7 @@ mod ebpf_secret_access_event_specifics {
     fn should_handle_env_var_access_type() {
         let event = SecretAccessEvent::new().with_env_var_access(b"SECRET_API_KEY");
 
-        assert_eq!(event.access_type, 1); // Environment variable access
+        assert_eq!(event.access_type, AccessType::EnvVar);
         assert_eq!(event.access_type_as_str(), "EnvVar");
     }
 }
