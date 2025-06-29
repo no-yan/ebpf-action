@@ -1,4 +1,6 @@
-# Loose Coupling & High Cohesion Refactoring Progress
+# Architecture Refactoring Progress
+
+> **📅 Implementation Timeline**: For when these architectural changes should be implemented, see the [Development Roadmap](development-roadmap.md#implementation-timeline-integration).
 
 ## Overview
 This document tracks the TDD-based refactoring of bee-trace to achieve loose coupling and high cohesion design, following "A Philosophy of Software Design" principles.

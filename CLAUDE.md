@@ -206,11 +206,17 @@ cargo test performance --release
 - Cross-platform size and alignment validation
 - Security event classification and severity testing
 
-See `docs/TESTING.md` for comprehensive testing documentation.
+See `docs/core/TESTING.md` for comprehensive testing documentation.
 
 ## Documentation
 
-For detailed documentation, refer to the `docs/` directory. When creating new documentation files, place them in the `docs/` directory to keep the project root organized.
+Documentation is organized in the `docs/` directory by purpose:
+
+- **`docs/core/`** - Essential guides (Architecture, Testing, Features)
+- **`docs/development/`** - Developer resources (Instructions, TDD, Roadmap)  
+- **`docs/implementation/`** - Technical implementation details
+
+Start with `docs/README.md` for a complete overview and navigation guide. When creating new documentation files, place them in the appropriate subdirectory to maintain organization.
 
 ## Testing & CI
 

@@ -23,6 +23,33 @@ Each phase requires **complete validation** before proceeding to the next phase:
 
 ---
 
+## Implementation Timeline Integration
+
+This roadmap integrates with the architecture refactoring work tracked in [rearchitecture.md](rearchitecture.md). The following timeline shows when implementation tasks should be executed in relation to ongoing architectural improvements.
+
+### Current Priority Implementation Schedule
+
+#### Week 1-2: Critical Bug Fixes (Immediate)
+- **ProcessMemoryEvent target_comm fix** (Section 1.2)
+- **Basic error handling improvements** (Section 1.5)
+
+#### Week 3-4: Architecture Refactoring (Parallel with Foundation)
+- **Phase 5: Event Processing Separation** (detailed in [rearchitecture.md](rearchitecture.md))
+  - Priority: Critical for foundation stability
+  - Blocks: Advanced reliability features
+  - Impact: Enables cleaner testing and maintenance
+
+#### Week 5-6: Platform Verification (Post-Architecture)
+- **Raspberry Pi operation verification** (Section 1.1)
+- **Kernel requirements verification** (Section 1.3)
+
+#### Month 2: Production Readiness (After Phase 5 completion)
+- **Security audit implementation** (Section 1.4)
+- **Performance benchmarking** (Section 2.2)
+- **Containerization and CI/CD** (Section 3.1-3.2)
+
+---
+
 ## Phase 1: Foundation & Critical Issues (HIGH PRIORITY)
 
 **Objective**: Establish reliable core functionality on Raspberry Pi platform
