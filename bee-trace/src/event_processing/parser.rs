@@ -1,13 +1,14 @@
 //! Safe Event Parsing
 //!
-//! Replaces unsafe pointer operations from main.rs with safe event parsing.
+//! eBPF events arrive as raw byte buffers that must be cast to Rust structs.
+//! This requires careful bounds checking to prevent buffer overruns and memory corruption.
 //! Provides type safety and proper error handling for eBPF event deserialization.
 
 use crate::event_processing::ParsedSecurityEvent;
 use bee_trace_common::{NetworkEvent, ProcessMemoryEvent, SecretAccessEvent};
 use log::warn;
 
-/// Safe event parser that replaces unsafe pointer operations
+/// Bounds-checked parser for eBPF event buffers
 pub struct SecurityEventParser;
 
 impl SecurityEventParser {
@@ -15,8 +16,8 @@ impl SecurityEventParser {
     pub fn parse_secret_event(buffer: &[u8]) -> anyhow::Result<SecretAccessEvent> {
         Self::check_buffer_size(buffer, std::mem::size_of::<SecretAccessEvent>())?;
 
-        // For now, use the unsafe operation but add proper bounds checking
-        // TODO: Replace with safe deserialization using bincode or similar
+        // Still uses unsafe cast but with bounds checking to prevent buffer overruns
+        // Future: Consider safer deserialization with zero-copy libraries like zerocopy
         if buffer.len() >= std::mem::size_of::<SecretAccessEvent>() {
             let event = unsafe { buffer.as_ptr().cast::<SecretAccessEvent>().read_unaligned() };
             Ok(event)

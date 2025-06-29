@@ -185,15 +185,15 @@ fn convert_args_to_configuration(args: &Args) -> anyhow::Result<Configuration> {
     Ok(config)
 }
 
-/// Extracted event processing logic (Phase 5 refactoring)
-/// This replaces the 99-line monolithic async block with modular components
+/// Event processing with extracted components
+/// Coordinates eBPF perf buffers across multiple CPUs using modular architecture
 async fn process_events_with_extracted_logic(
     event_arrays: Vec<(&str, PerfEventArray<aya::maps::MapData>)>,
     config: Configuration,
 ) {
     use bee_trace::event_processing::{PerfBufferManager, SecurityEventParser};
 
-    // Use the new PerfBufferManager for CPU coordination
+    // Initialize CPU detection and buffer management
     let buffer_manager = match PerfBufferManager::new() {
         Ok(manager) => manager,
         Err(e) => {
@@ -224,7 +224,7 @@ async fn process_events_with_extracted_logic(
             let event_type = event_type.to_string();
 
             tokio::spawn(async move {
-                // Use extracted buffer management
+                // Pre-allocate buffer pool to avoid allocations in event loop
                 let buffers = PerfBufferManager::default().create_buffer_pool(1024, 10);
                 let mut buffers = buffers;
 
@@ -233,7 +233,7 @@ async fn process_events_with_extracted_logic(
                     match events {
                         Ok(events) => {
                             for buf in buffers.iter().take(events.read) {
-                                // Use the new safe event parsing instead of unsafe operations
+                                // Parse events with bounds checking to prevent buffer overruns
                                 match SecurityEventParser::parse_event_by_type(&event_type, buf) {
                                     Ok(parsed_event) => {
                                         let security_event = parsed_event.into_security_event();

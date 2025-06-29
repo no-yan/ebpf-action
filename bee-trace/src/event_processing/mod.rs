@@ -1,7 +1,8 @@
 //! Event Processing Module
 //!
-//! This module provides a clean abstraction for eBPF event processing,
-//! replacing the monolithic async block in main.rs with modular components.
+//! This module provides a clean abstraction for eBPF event processing.
+//! The previous monolithic approach mixed responsibilities and used unsafe operations,
+//! making it difficult to test individual components and reason about failures.
 //!
 //! Key components:
 //! - EventProcessor: Main interface for event processing lifecycle
@@ -20,7 +21,7 @@ pub use processor::{EventProcessor, SecurityEventProcessor};
 use aya::maps::PerfEventArray;
 use bee_trace_common::{NetworkEvent, ProcessMemoryEvent, SecretAccessEvent};
 
-/// Event array mapping for cleaner interface (matches main.rs usage)
+/// Type alias for event arrays passed from main.rs eBPF initialization
 pub type EventArrayMap = Vec<(&'static str, PerfEventArray<&'static mut [u8]>)>;
 
 /// Security event types that can be parsed

@@ -1,7 +1,8 @@
 //! Perf Buffer Management
 //!
 //! Handles CPU detection and buffer coordination for eBPF perf event arrays.
-//! Replaces the scattered CPU and buffer management from main.rs.
+//! eBPF perf buffers are per-CPU, so we must coordinate across all online CPUs
+//! to avoid missing events. Buffer pools prevent allocation overhead in hot paths.
 
 use aya::util::online_cpus;
 use bytes::BytesMut;
