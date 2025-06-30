@@ -222,13 +222,6 @@ Start with `docs/README.md` for a complete overview and navigation guide. When c
 
 GitHub Actions workflow (`.github/workflows/action.yml`) builds and tests the container with proper eBPF capabilities using `docker buildx bake` and runs with `--cap-add CAP_BPF`.
 
-## Code Quality Guidelines for Claude
+## Development Guidelines
 
-### Comment Writing
-- **Principle**: Comments should explain WHY and provide context, not describe WHAT
-- **Example**: "eBPF perf buffers are per-CPU" not "Replaces CPU management from main.rs"
-
-### PR Description Guidelines  
-- **Focus on reviewer needs**: Problem context and specific review focus areas
-- **Avoid redundant info**: File lists (visible in GitHub), test counts (visible in CI)
-- **Template**: Summary → Background → Changes → Review focus
+For comprehensive AI-native development guidelines including commenting principles, PR best practices, and collaboration patterns, see `docs/03-development/ai-native-development.md`.
