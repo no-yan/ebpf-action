@@ -23,6 +23,7 @@ System design and technical principles:
 ### 03. Development
 Practical guidance for contributors and developers:
 
+- **[AI-Native Development](03-development/ai-native-development.md)** - Comprehensive guidelines for AI-assisted development including commenting principles and collaboration patterns
 - **[Testing Strategy](03-development/testing-strategy.md)** - Comprehensive testing approach and best practices
 - **[Contribution Workflow](03-development/contribution-workflow.md)** - How to contribute code and follow development patterns
 
