@@ -13,10 +13,15 @@ jobs:
       - name: Create a image
         run: |
           docker buildx bake --load
-      - name: Run the image
+      - name: Run the image detached
         run: |
-          docker run \
+          docker run -d \
+            --name bee-trace-container \
             --privileged \
             -v /sys/kernel/tracing:/sys/kernel/tracing \
-            myapp \
-            --duration 30
+            myapp
+
+      - name: Stop the container
+        run: |
+          sleep 30
+          docker stop bee-trace-container
