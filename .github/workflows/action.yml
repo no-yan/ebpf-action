@@ -18,4 +18,5 @@ jobs:
           docker run \
             --privileged \
             -v /sys/kernel/tracing:/sys/kernel/tracing \
-            myapp
+            myapp \
+            --duration 30

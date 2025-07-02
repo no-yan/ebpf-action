@@ -61,4 +61,4 @@ COPY --from=build /bin/myapp /bin/
 EXPOSE 1000
 
 # What the container should run when it is started.
-CMD ["/bin/myapp"]
+ENTRYPOINT ["/bin/myapp"]
