@@ -18,7 +18,10 @@ jobs:
           docker run -d \
             --name bee-trace-container \
             --privileged \
+            --pid=host \
+            -v /:/host \
             -v /sys/kernel/tracing:/sys/kernel/tracing \
+            -v /proc:/proc \
             myapp --probe-type file_monitor
 
       - name: Test file_monitor feature
