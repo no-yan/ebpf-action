@@ -15,4 +15,7 @@ jobs:
           docker buildx bake --load
       - name: Run the image
         run: |
-          docker run --privileged myapp
+          docker run \
+            --privileged \
+            -v /sys/kernel/tracing:/sys/kernel/tracing \
+            myapp
