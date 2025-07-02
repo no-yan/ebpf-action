@@ -19,9 +19,15 @@ jobs:
             --name bee-trace-container \
             --privileged \
             -v /sys/kernel/tracing:/sys/kernel/tracing \
-            myapp
+            myapp --probe-type file_monitor
 
-      - name: Stop the container
+      - name: Test file_monitor feature
         run: |
-          sleep 30
+          sleep 5
+          echo hi > id_rsa && cat id_rsa
+          sleep 10
+
+      - name: Stop the container and check logs
+        run: |
+          docker logs bee-trace-container
           docker stop bee-trace-container
