@@ -13,8 +13,7 @@ pre-commit:
     format:
       tags: rust format
       glob: "*.rs"
-      run: cargo fmt --all -- --check
-      fail_text: "Code formatting issues found. Run 'cargo fmt --all' to fix."
+      run: cargo fmt --all
       stage_fixed: true
 
     # Lint check - run clippy on all workspace packages
