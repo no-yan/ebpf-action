@@ -304,9 +304,7 @@ fn process_security_event(
         }
     }
 
-    // In security mode, show all events
-    // Otherwise, show all events (keeping original behavior)
-    if config.is_security_mode() {
-        println!("{}", formatter.format_event(event));
-    }
+    // Always show events when monitoring is active
+    // Security mode enables additional detailed output
+    println!("{}", formatter.format_event(event));
 }

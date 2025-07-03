@@ -5,8 +5,9 @@ use aya_ebpf::{
     programs::TracePointContext,
     EbpfContext,
 };
+use aya_log_ebpf::{info, warn};
 use bee_trace_common::SecretAccessEvent;
-
+use core::str;
 #[map]
 static SECRET_ACCESS_EVENTS: PerfEventArray<SecretAccessEvent> = PerfEventArray::new(0);
 
@@ -29,13 +30,25 @@ unsafe fn try_sys_enter_openat(ctx: TracePointContext) -> Result<u32, i64> {
 
     // Read the filename from user space
     let mut filename_buf = [0u8; 128];
+
     let filename_len = bpf_probe_read_user_str_bytes(filename_ptr, &mut filename_buf)
         .map_err(|_| 1i64)?
         .len() as u32;
 
     // Check if the file matches any watched patterns
+    if let Ok(filename) = str::from_utf8(&filename_buf[..filename_len.min(128) as usize]) {
+        info!(&ctx, "monitoring file access: {}", filename);
+    } else {
+        warn!(&ctx, "failed to parse filename as UTF-8");
+    }
+
     if !is_sensitive_file(&filename_buf, filename_len.try_into().unwrap()) {
         return Ok(0);
+    }
+
+    // Log when sensitive file is detected
+    if let Ok(filename) = str::from_utf8(&filename_buf[..filename_len.min(128) as usize]) {
+        info!(&ctx, "🚨 SENSITIVE FILE ACCESS DETECTED: {}", filename);
     }
 
     let Ok(comm) = ctx.command() else {
@@ -56,6 +69,7 @@ unsafe fn try_sys_enter_openat(ctx: TracePointContext) -> Result<u32, i64> {
     event.path_or_var[..copy_len].copy_from_slice(&filename_buf[..copy_len]);
 
     SECRET_ACCESS_EVENTS.output(&ctx, &event, 0);
+    info!(&ctx, "🔔 Event sent to userspace for PID: {}", ctx.pid());
     Ok(0)
 }
 
@@ -65,6 +79,7 @@ unsafe fn is_sensitive_file(filename: &[u8; 128], len: usize) -> bool {
         return false;
     }
 
+    // Check for exact filename matches and path-based matches
     if filename.starts_with(b"credentials.json")
         | filename.starts_with(b"id_rsa")
         | filename.starts_with(b"id_dsa")
@@ -72,9 +87,24 @@ unsafe fn is_sensitive_file(filename: &[u8; 128], len: usize) -> bool {
         | filename.starts_with(b"id_ed25519")
         | filename.starts_with(b".env")
         | filename.starts_with(b"config.json")
-        | filename.starts_with(b"secrerts.yaml")
+        | filename.starts_with(b"secrets.yaml")  // Fixed typo
         | filename.starts_with(b"secrets.yml")
         | filename.starts_with(b"private.key")
+    {
+        return true;
+    }
+
+    // Check if filename contains sensitive patterns (for absolute paths)
+    let slice = &filename[..len];
+    if contains_pattern(slice, b"id_rsa")
+        || contains_pattern(slice, b"id_dsa")
+        || contains_pattern(slice, b"id_ecdsa")
+        || contains_pattern(slice, b"id_ed25519")
+        || contains_pattern(slice, b"credentials.json")
+        || contains_pattern(slice, b"private.key")
+        || contains_pattern(slice, b"secrets.yaml")
+        || contains_pattern(slice, b"secrets.yml")
+        || contains_pattern(slice, b".env")
     {
         return true;
     }
@@ -97,5 +127,29 @@ unsafe fn is_sensitive_file(filename: &[u8; 128], len: usize) -> bool {
         }
     }
 
+    false
+}
+
+#[inline(never)]
+unsafe fn contains_pattern(haystack: &[u8], needle: &[u8]) -> bool {
+    if needle.len() > haystack.len() {
+        return false;
+    }
+
+    let needle_len = needle.len();
+    let haystack_len = haystack.len();
+
+    for i in 0..=(haystack_len - needle_len) {
+        let mut matches = true;
+        for j in 0..needle_len {
+            if haystack[i + j] != needle[j] {
+                matches = false;
+                break;
+            }
+        }
+        if matches {
+            return true;
+        }
+    }
     false
 }
