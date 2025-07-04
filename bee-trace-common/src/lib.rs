@@ -255,7 +255,7 @@ impl SecretAccessEvent {
     }
 
     pub fn path_or_var_as_str(&self) -> &str {
-        let end = self.path_len.min(self.path_or_var.len()) as usize;
+        let end = self.path_len.min(self.path_or_var.len());
         core::str::from_utf8(&self.path_or_var[..end]).unwrap_or("<invalid>")
     }
 
