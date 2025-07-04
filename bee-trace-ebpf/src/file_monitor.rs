@@ -66,12 +66,12 @@ fn get_path_ptr(ctx: &TracePointContext) -> Result<([u8; 128], usize), i64> {
 }
 
 fn is_sensitive_file(path_buf: [u8; 128], path_len: usize) -> bool {
-    let basename_indx = get_basename_start_index(path_buf);
-    if basename_indx >= path_len {
+    let basename_idx = get_basename_start_index(path_buf);
+    if basename_idx >= path_len {
         return false;
     }
 
-    let basename_buf = &path_buf[basename_indx..path_len];
+    let basename_buf = &path_buf[basename_idx..path_len];
     if basename_buf.starts_with(b"credentials.json")
         || basename_buf.starts_with(b"id_rsa")
         || basename_buf.starts_with(b"id_dsa")
@@ -106,6 +106,9 @@ fn is_sensitive_file(path_buf: [u8; 128], path_len: usize) -> bool {
     false
 }
 
+/// Given a file path, returns the index where the basename(file name) starts.
+/// Typically, this type of function returns a slice, but this returns an index instead.
+/// Returning an unsized array is expensive in eBPF verification and can exceed the instruction limit.
 fn get_basename_start_index(path: [u8; 128]) -> usize {
     let len = path.len();
     if len == 0 {
