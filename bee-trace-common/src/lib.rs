@@ -177,7 +177,7 @@ pub struct SecretAccessEvent {
     pub comm: [u8; 16],
     pub access_type: AccessType,
     pub path_or_var: [u8; 128], // file path or environment variable name
-    pub path_len: u32,
+    pub path_len: usize,
 }
 
 #[derive(Clone, Debug, PartialEq, Copy)]
@@ -242,7 +242,7 @@ impl SecretAccessEvent {
         self.access_type = AccessType::File;
         let copy_len = path.len().min(self.path_or_var.len());
         self.path_or_var[..copy_len].copy_from_slice(&path[..copy_len]);
-        self.path_len = copy_len as u32;
+        self.path_len = copy_len;
         self
     }
 
@@ -250,12 +250,12 @@ impl SecretAccessEvent {
         self.access_type = AccessType::EnvVar;
         let copy_len = var_name.len().min(self.path_or_var.len());
         self.path_or_var[..copy_len].copy_from_slice(&var_name[..copy_len]);
-        self.path_len = copy_len as u32;
+        self.path_len = copy_len;
         self
     }
 
     pub fn path_or_var_as_str(&self) -> &str {
-        let end = self.path_len.min(self.path_or_var.len() as u32) as usize;
+        let end = self.path_len.min(self.path_or_var.len()) as usize;
         core::str::from_utf8(&self.path_or_var[..end]).unwrap_or("<invalid>")
     }
 
@@ -518,7 +518,7 @@ mod tests {
 
                 assert_eq!(event.pid, 1234);
                 assert_eq!(event.access_type, AccessType::File);
-                assert_eq!(event.path_len, file_path.len() as u32);
+                assert_eq!(event.path_len, file_path.len());
                 assert_eq!(event.path_or_var_as_str(), "/etc/passwd");
                 assert_eq!(event.access_type_as_str(), "File");
             }
@@ -529,7 +529,7 @@ mod tests {
                 let event = SecretAccessEvent::new().with_env_var_access(var_name);
 
                 assert_eq!(event.access_type, AccessType::EnvVar);
-                assert_eq!(event.path_len, var_name.len() as u32);
+                assert_eq!(event.path_len, var_name.len());
                 assert_eq!(event.path_or_var_as_str(), "SECRET_API_KEY");
                 assert_eq!(event.access_type_as_str(), "EnvVar");
             }
