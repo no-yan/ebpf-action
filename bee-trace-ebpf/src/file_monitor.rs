@@ -7,7 +7,6 @@ use aya_ebpf::{
 };
 use aya_log_ebpf::info;
 use bee_trace_common::SecretAccessEvent;
-use core::str::{self};
 
 #[map]
 static SECRET_ACCESS_EVENTS: PerfEventArray<SecretAccessEvent> = PerfEventArray::new(0);
@@ -20,11 +19,20 @@ pub fn sys_enter_openat(ctx: TracePointContext) -> u32 {
     unsafe { try_sys_enter_openat(ctx) }.unwrap_or(1)
 }
 
-#[inline(never)]
 unsafe fn try_sys_enter_openat(ctx: TracePointContext) -> Result<u32, i64> {
-    // Get the filename from the tracepoint arguments
+    // Get the filename pointer from the tracepoint arguments
+    let Ok(ptr) = get_path_ptr(&ctx) else {
+        return Err(0);
+    };
 
-    let Ok(_val @ true) = is_sensitive_file(&ctx) else {
+    // Read the filename from user space
+    let mut path_buf = [0u8; 128];
+
+    let path_len = unsafe { bpf_probe_read_user_str_bytes(ptr, &mut path_buf) }
+        .map_err(|_| 1i64)?
+        .len();
+
+    if !is_sensitive_file(path_buf, path_len) {
         return Ok(0);
     };
 
@@ -37,11 +45,9 @@ unsafe fn try_sys_enter_openat(ctx: TracePointContext) -> Result<u32, i64> {
         uid: ctx.uid(),
         comm,
         access_type: bee_trace_common::AccessType::File,
-        path_len: 128,
-        path_or_var: [0u8; 128],
+        path_len,
+        path_or_var: path_buf,
     };
-
-    // event.path_or_var[..copy_len].copy_from_slice(&path_buf[..copy_len]);
 
     SECRET_ACCESS_EVENTS.output(&ctx, &event, 0);
     info!(&ctx, "🔔 Event sent to userspace for PID: {}", ctx.pid());
@@ -59,44 +65,32 @@ fn get_path_ptr(ctx: &TracePointContext) -> Result<*const u8, i64> {
     }
 }
 
-#[inline(never)]
-fn is_sensitive_file(ctx: &TracePointContext) -> Result<bool, i64> {
-    let Ok(ptr) = get_path_ptr(&ctx) else {
-        return Err(0);
-    };
-
-    // Read the filename from user space
-    let mut path_buf = [0u8; 128];
-    let path_len = unsafe { bpf_probe_read_user_str_bytes(ptr, &mut path_buf) }
-        .map_err(|_| 1i64)?
-        .len();
-
+fn is_sensitive_file(path_buf: [u8; 128], path_len: usize) -> bool {
     let basename_indx = get_basename_start_index(path_buf);
     if basename_indx >= path_len {
-        return Err(0);
+        return false;
     }
 
     let basename_buf = &path_buf[basename_indx..path_len];
-    let basename_str = unsafe { str::from_utf8_unchecked(basename_buf) };
-    if basename_str.starts_with("credentials.json")
-        || basename_str.starts_with("id_rsa")
-        || basename_str.starts_with("id_dsa")
-        || basename_str.starts_with("id_ecdsa")
-        || basename_str.starts_with("id_ed25519")
-        || basename_str.starts_with(".env")
-        || basename_str.starts_with("config.json")
-        || basename_str.starts_with("secrets.yaml")
-        || basename_str.starts_with("secrets.yml")
-        || basename_str.starts_with("private.key")
+    if basename_buf.starts_with(b"credentials.json")
+        || basename_buf.starts_with(b"id_rsa")
+        || basename_buf.starts_with(b"id_dsa")
+        || basename_buf.starts_with(b"id_ecdsa")
+        || basename_buf.starts_with(b"id_ed25519")
+        || basename_buf.starts_with(b".env")
+        || basename_buf.starts_with(b"config.json")
+        || basename_buf.starts_with(b"secrets.yaml")
+        || basename_buf.starts_with(b"secrets.yml")
+        || basename_buf.starts_with(b"private.key")
     {
-        return Ok(true);
+        return true;
     }
 
     if basename_buf.len() < 4 {
-        return Ok(false);
+        return false;
     }
 
-    let start = basename_str.len() - 4;
+    let start = basename_buf.len() - 4;
     let ext = &basename_buf[start..start + 4];
     if ext == b".pem"
         || ext == b".key"
@@ -106,13 +100,12 @@ fn is_sensitive_file(ctx: &TracePointContext) -> Result<bool, i64> {
         || ext == b".cer"
         || ext == b".der"
     {
-        return Ok(true);
+        return true;
     }
 
-    Ok(false)
+    false
 }
 
-#[inline(never)]
 fn get_basename_start_index(path: [u8; 128]) -> usize {
     let len = path.len();
     if len == 0 {
