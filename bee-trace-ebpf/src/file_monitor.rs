@@ -8,6 +8,22 @@ use aya_ebpf::{
 use aya_log_ebpf::info;
 use bee_trace_common::SecretAccessEvent;
 use core::str;
+
+macro_rules! basename {
+    ($path: expr) => {{
+        let path = $path.as_bytes();
+        let mut basename_start_idx = 0;
+        for i in (0..path.len()).rev() {
+            if path[i] == b'/' {
+                basename_start_idx = i + 1;
+                break;
+            }
+        }
+
+        &path[basename_start_idx..path.len()]
+    }};
+}
+
 #[map]
 static SECRET_ACCESS_EVENTS: PerfEventArray<SecretAccessEvent> = PerfEventArray::new(0);
 
@@ -30,7 +46,6 @@ unsafe fn try_sys_enter_openat(ctx: TracePointContext) -> Result<u32, i64> {
 
     // Read the filename from user space
     let mut path_buf = [0u8; 128];
-
     let path_len = bpf_probe_read_user_str_bytes(path_ptr, &mut path_buf)
         .map_err(|_| 1i64)?
         .len() as u32;
@@ -43,17 +58,9 @@ unsafe fn try_sys_enter_openat(ctx: TracePointContext) -> Result<u32, i64> {
         return Ok(0);
     }
 
+    let basename_str = str::from_utf8_unchecked(&basename!(filename));
+    info!(&ctx, "basename test: {}", basename_str);
     // Log when sensitive file is detected
-    let path = str::from_utf8_unchecked(&path_buf[..path_len.min(128) as usize]);
-    let mut basename_start_idx = 0;
-    for i in (0..path_buf.len()).rev() {
-        if path_buf[i] == b'/' {
-            basename_start_idx = i + 1;
-            break;
-        }
-    }
-
-    info!(&ctx, "🚨 SENSITIVE FILE ACCESS DETECTED: {}", path);
 
     let Ok(comm) = ctx.command() else {
         return Ok(0);
@@ -79,14 +86,6 @@ unsafe fn try_sys_enter_openat(ctx: TracePointContext) -> Result<u32, i64> {
 
 #[inline(never)]
 unsafe fn is_sensitive_file(filename: &[u8]) -> bool {
-    let mut basename_start_idx = 0;
-    for i in (0..filename.len()).rev() {
-        if filename[i] == b'/' {
-            basename_start_idx = i + 1;
-            break;
-        }
-    }
-
     //
     // let basename = &filename[basename_start_idx..filename.len()];
     // let basename_str = str::from_utf8_unchecked(basename);
