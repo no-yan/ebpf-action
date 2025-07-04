@@ -21,16 +21,9 @@ pub fn sys_enter_openat(ctx: TracePointContext) -> u32 {
 
 unsafe fn try_sys_enter_openat(ctx: TracePointContext) -> Result<u32, i64> {
     // Get the filename pointer from the tracepoint arguments
-    let Ok(ptr) = get_path_ptr(&ctx) else {
+    let Ok((path_buf, path_len)) = get_path_ptr(&ctx) else {
         return Err(0);
     };
-
-    // Read the filename from user space
-    let mut path_buf = [0u8; 128];
-
-    let path_len = unsafe { bpf_probe_read_user_str_bytes(ptr, &mut path_buf) }
-        .map_err(|_| 1i64)?
-        .len();
 
     if !is_sensitive_file(path_buf, path_len) {
         return Ok(0);
@@ -55,14 +48,21 @@ unsafe fn try_sys_enter_openat(ctx: TracePointContext) -> Result<u32, i64> {
 }
 
 #[inline]
-fn get_path_ptr(ctx: &TracePointContext) -> Result<*const u8, i64> {
+fn get_path_ptr(ctx: &TracePointContext) -> Result<([u8; 128], usize), i64> {
     let ptr = unsafe { ctx.read_at::<*const u8>(24)? };
 
     if ptr.is_null() {
-        Err(0)
-    } else {
-        Ok(ptr)
-    }
+        return Err(0);
+    };
+
+    // Read the filename from user space
+    let mut path_buf = [0u8; 128];
+
+    let path_len = unsafe { bpf_probe_read_user_str_bytes(ptr, &mut path_buf) }
+        .map_err(|_| 1i64)?
+        .len();
+
+    Ok((path_buf, path_len))
 }
 
 fn is_sensitive_file(path_buf: [u8; 128], path_len: usize) -> bool {
