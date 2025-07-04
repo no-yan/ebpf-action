@@ -22,21 +22,21 @@ pub fn sys_enter_openat(ctx: TracePointContext) -> u32 {
 #[inline]
 unsafe fn try_sys_enter_openat(ctx: TracePointContext) -> Result<u32, i64> {
     // Get the filename from the tracepoint arguments
-    let filename_ptr: *const u8 = ctx.read_at::<*const u8>(24)?;
+    let path_ptr: *const u8 = ctx.read_at::<*const u8>(24)?;
 
-    if filename_ptr.is_null() {
+    if path_ptr.is_null() {
         return Ok(0);
     }
 
     // Read the filename from user space
     let mut path_buf = [0u8; 128];
 
-    let path_len = bpf_probe_read_user_str_bytes(filename_ptr, &mut path_buf)
+    let path_len = bpf_probe_read_user_str_bytes(path_ptr, &mut path_buf)
         .map_err(|_| 1i64)?
         .len() as u32;
 
     // Check if the file matches any watched patterns
-    let filename = str::from_utf8_unchecked(&path_buf[..path_len.min(128) as usize]);
+    let filename = str::from_utf8_unchecked(&path_buf[..path_len as usize]);
     info!(&ctx, "monitoring file access: {}", filename);
 
     if !is_sensitive_file(&path_buf) {
