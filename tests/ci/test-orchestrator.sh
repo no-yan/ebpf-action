@@ -33,7 +33,10 @@ main() {
     start_bee_trace_container
     
     # Wait for container to be ready
-    wait_for_container_ready
+    if ! wait_for_container_ready; then
+        log_error "Container initialization failed, skipping tests"
+        return 1
+    fi
     
     # Execute test suite
     case "${TEST_SUITE}" in
@@ -91,7 +94,8 @@ wait_for_container_ready() {
     log_info "Waiting for bee-trace to initialize..."
     local count=0
     while [ $count -lt 30 ]; do
-        if docker logs "${CONTAINER_NAME}" 2>&1 | grep -q "eBPF program attached successfully"; then
+        # Check for various initialization success patterns
+        if docker logs "${CONTAINER_NAME}" 2>&1 | grep -qE "eBPF program attached successfully|Attached.*probe|Attached.*tracepoint|Initialized.*monitoring"; then
             log_info "bee-trace is ready"
             sleep 2  # Extra time for stabilization
             return 0
@@ -100,9 +104,14 @@ wait_for_container_ready() {
         ((count++))
     done
     
-    log_error "bee-trace failed to initialize"
-    docker logs "${CONTAINER_NAME}"
-    exit 1
+    log_error "bee-trace failed to initialize within 30 seconds"
+    log_error "Container logs:"
+    docker logs "${CONTAINER_NAME}" 2>&1
+    log_error "Container status:"
+    docker ps -a | grep "${CONTAINER_NAME}" || echo "Container not found"
+    
+    # Don't exit immediately - let the trap handle cleanup
+    return 1
 }
 
 run_file_monitor_tests() {
