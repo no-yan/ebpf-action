@@ -24,40 +24,40 @@ setup:
 
 # Basic run commands - Default to security monitoring mode
 run *args:
-    cargo run --release --config 'target."cfg(all())".runner="sudo -E"' -- --security-mode {{args}}
+    cargo run --config 'target."cfg(all())".runner="sudo -E"' -- --security-mode {{args}}
 
 run-verbose *args:
-    cargo run --release --config 'target."cfg(all())".runner="sudo -E"' -- --security-mode --verbose {{args}}
+    cargo run  --config 'target."cfg(all())".runner="sudo -E"' -- --security-mode --verbose {{args}}
 
 # Legacy file monitoring modes (backward compatibility)
 run-vfs *args:
-    cargo run --release --config 'target."cfg(all())".runner="sudo -E"' -- --probe-type vfs_read {{args}}
+    cargo run  --config 'target."cfg(all())".runner="sudo -E"' -- --probe-type vfs_read {{args}}
 
 run-syscall *args:
-    cargo run --release --config 'target."cfg(all())".runner="sudo -E"' -- --probe-type sys_enter_read {{args}}
+    cargo run  --config 'target."cfg(all())".runner="sudo -E"' -- --probe-type sys_enter_read {{args}}
 
 # Security monitoring modes
 run-file-monitor *args:
-    cargo run --release --config 'target."cfg(all())".runner="sudo -E"' -- --probe-type file_monitor --security-mode {{args}}
+    cargo run  --config 'target."cfg(all())".runner="sudo -E"' -- --probe-type file_monitor --security-mode {{args}}
 
 run-network-monitor *args:
-    cargo run --release --config 'target."cfg(all())".runner="sudo -E"' -- --probe-type network_monitor --security-mode {{args}}
+    cargo run  --config 'target."cfg(all())".runner="sudo -E"' -- --probe-type network_monitor --security-mode {{args}}
 
 run-memory-monitor *args:
-    cargo run --release --config 'target."cfg(all())".runner="sudo -E"' -- --probe-type memory_monitor --security-mode {{args}}
+    cargo run  --config 'target."cfg(all())".runner="sudo -E"' -- --probe-type memory_monitor --security-mode {{args}}
 
 run-all-monitors *args:
-    cargo run --release --config 'target."cfg(all())".runner="sudo -E"' -- --probe-type all --security-mode {{args}}
+    cargo run  --config 'target."cfg(all())".runner="sudo -E"' -- --probe-type all --security-mode {{args}}
 
 # Utility commands
 run-duration seconds *args:
-    cargo run --release --config 'target."cfg(all())".runner="sudo -E"' -- --duration {{seconds}} --security-mode {{args}}
+    cargo run  --config 'target."cfg(all())".runner="sudo -E"' -- --duration {{seconds}} --security-mode {{args}}
 
 run-filter command *args:
-    cargo run --release --config 'target."cfg(all())".runner="sudo -E"' -- --command "{{command}}" --security-mode {{args}}
+    cargo run  --config 'target."cfg(all())".runner="sudo -E"' -- --command "{{command}}" --security-mode {{args}}
 
 run-with-config config_path *args:
-    cargo run --release --config 'target."cfg(all())".runner="sudo -E"' -- --config {{config_path}} --security-mode {{args}}
+    cargo run  --config 'target."cfg(all())".runner="sudo -E"' -- --config {{config_path}} --security-mode {{args}}
 
 # Docker commands
 docker-build:
