@@ -334,16 +334,16 @@ main() {
         log_warning "gdb not available, some tests will be limited"
     fi
     
-    # Run all tests
-    run_test "Direct Memory Read" test_direct_memory_read "${RESULTS_FILE}"
-    run_test "Ptrace Attempts" test_ptrace_attempts "${RESULTS_FILE}"
-    run_test "Memory Scanning Pattern" test_memory_scanning "${RESULTS_FILE}"
-    run_test "Credential Dumping Simulation" test_credential_dumping "${RESULTS_FILE}"
-    run_test "Container Escape Attempts" test_container_escape "${RESULTS_FILE}"
-    run_test "Anti-Debugging Detection" test_anti_debugging "${RESULTS_FILE}"
-    run_test "Memory Injection Simulation" test_memory_injection "${RESULTS_FILE}"
-    run_test "Rootkit Behavior Simulation" test_rootkit_behavior "${RESULTS_FILE}"
-    run_test "Normal Process Inspection" test_normal_process_inspection "${RESULTS_FILE}"
+    # Run all tests with 60-second timeout each
+    run_test "Direct Memory Read" test_direct_memory_read "${RESULTS_FILE}" 60
+    run_test "Ptrace Attempts" test_ptrace_attempts "${RESULTS_FILE}" 60
+    run_test "Memory Scanning Pattern" test_memory_scanning "${RESULTS_FILE}" 60
+    run_test "Credential Dumping Simulation" test_credential_dumping "${RESULTS_FILE}" 60
+    run_test "Container Escape Attempts" test_container_escape "${RESULTS_FILE}" 60
+    run_test "Anti-Debugging Detection" test_anti_debugging "${RESULTS_FILE}" 60
+    run_test "Memory Injection Simulation" test_memory_injection "${RESULTS_FILE}" 60
+    run_test "Rootkit Behavior Simulation" test_rootkit_behavior "${RESULTS_FILE}" 60
+    run_test "Normal Process Inspection" test_normal_process_inspection "${RESULTS_FILE}" 60
     
     log_info "Memory access scenarios completed"
 }

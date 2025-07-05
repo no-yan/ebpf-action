@@ -227,17 +227,17 @@ test_container_secrets_access() {
 main() {
     log_info "Starting file access test scenarios..."
     
-    # Run all tests
-    run_test "SSH Key Access" test_ssh_key_access "${RESULTS_FILE}"
-    run_test "Environment File Access" test_env_file_access "${RESULTS_FILE}"
-    run_test "Certificate Access" test_certificate_access "${RESULTS_FILE}"
-    run_test "Credential File Access" test_credential_file_access "${RESULTS_FILE}"
-    run_test "Git Config Access" test_git_config_access "${RESULTS_FILE}"
-    run_test "Rapid File Access Pattern" test_rapid_file_access "${RESULTS_FILE}"
-    run_test "Hidden File Access" test_hidden_file_access "${RESULTS_FILE}"
-    run_test "Non-Sensitive File Filtering" test_non_sensitive_files "${RESULTS_FILE}"
-    run_test "Database Config Access" test_database_config_access "${RESULTS_FILE}"
-    run_test "Container Secrets Access" test_container_secrets_access "${RESULTS_FILE}"
+    # Run all tests with 60-second timeout each
+    run_test "SSH Key Access" test_ssh_key_access "${RESULTS_FILE}" 60
+    run_test "Environment File Access" test_env_file_access "${RESULTS_FILE}" 60
+    run_test "Certificate Access" test_certificate_access "${RESULTS_FILE}" 60
+    run_test "Credential File Access" test_credential_file_access "${RESULTS_FILE}" 60
+    run_test "Git Config Access" test_git_config_access "${RESULTS_FILE}" 60
+    run_test "Rapid File Access Pattern" test_rapid_file_access "${RESULTS_FILE}" 60
+    run_test "Hidden File Access" test_hidden_file_access "${RESULTS_FILE}" 60
+    run_test "Non-Sensitive File Filtering" test_non_sensitive_files "${RESULTS_FILE}" 60
+    run_test "Database Config Access" test_database_config_access "${RESULTS_FILE}" 60
+    run_test "Container Secrets Access" test_container_secrets_access "${RESULTS_FILE}" 60
     
     log_info "File access scenarios completed"
 }
