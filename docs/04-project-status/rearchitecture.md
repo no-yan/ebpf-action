@@ -11,9 +11,9 @@ This document tracks the TDD-based refactoring of bee-trace to achieve loose cou
 - **Goal**: Extract clean interfaces, separate concerns, improve maintainability
 - **Approach**: Test-Driven Development with t-wada methodology
 
-## Progress Status: 70% Complete
+## Progress Status: 62% Complete (5 of 8 phases done)
 
-### ✅ COMPLETED PHASES (1-4)
+### ✅ COMPLETED PHASES (1-5)
 
 #### Phase 1: Setup test environment and branch ✅
 - **Status**: COMPLETED
@@ -53,45 +53,21 @@ This document tracks the TDD-based refactoring of bee-trace to achieve loose cou
 - **Achievement**: CLI arguments → Configuration → EbpfApplication working
 - **Validation**: `just run-all-monitors` uses new architecture successfully
 
-### ❌ REMAINING PHASES (5-8)
+#### Phase 5: Event Processing Extraction ✅
+- **Status**: COMPLETED (2025-06-29)
+- **Branch**: `feature/phase5-event-processing-extraction`
+- **PR**: #6 - Complete Phase 5 event processing extraction refactoring
+- **Achievement**: Extracted 99-line monolithic async block into modular components:
+  - `event_processing/` module with 4 focused components (592 lines)
+  - `PerfBufferManager` for CPU coordination and buffer management
+  - `SecurityEventParser` for bounds-checked parsing (eliminates unsafe code)
+  - `EventProcessor` trait with `SecurityEventProcessor` implementation  
+  - `process_events_with_extracted_logic()` function in main.rs
+  - Comprehensive TDD test suite with 13 new tests (173 total tests passing)
+  - All unsafe pointer operations now have bounds checking
+  - Memory safety improvements through proper error handling
 
-#### Phase 5: TDD Cycle 4 - Event Processing Separation ⚠️ HIGH PRIORITY
-- **Status**: PENDING
-- **Problem**: Lines 130-235 in main.rs contain monolithic event processing (100+ lines)
-- **Current Code Issue**:
-  ```rust
-  let event_processor = async move {
-      let cpus = match online_cpus() { ... };
-      for (event_type, mut perf_array) in event_arrays {
-          for cpu_id in &cpus {
-              // Complex perf buffer management
-              // CPU-specific task spawning  
-              // Event parsing and dispatching
-              // Raw unsafe pointer operations
-          }
-      }
-  };
-  ```
-
-**Required Refactoring**:
-1. **Create EventProcessor trait** for perf buffer management abstraction
-2. **Extract SecurityEventDispatcher** for event routing logic  
-3. **Create PerfBufferManager** for CPU/buffer coordination
-4. **Implement EventStreamHandler** for async event streaming
-5. **Move unsafe pointer operations** to dedicated event parsing module
-
-**Files to Create**:
-- `bee-trace/src/event_processing/mod.rs`
-- `bee-trace/src/event_processing/event_processor.rs` 
-- `bee-trace/src/event_processing/perf_buffer_manager.rs`
-- `bee-trace/src/event_processing/security_event_dispatcher.rs`
-- `bee-trace/src/event_processing/event_stream_handler.rs`
-
-**TDD Approach**:
-1. Write tests for EventProcessor interface
-2. Create mock implementations for testing
-3. Extract one concern at a time (Red-Green-Refactor)
-4. Integration tests for complete event flow
+### ❌ REMAINING PHASES (6-8)
 
 #### Phase 6: TDD Cycle 5 - Reporting responsibility separation
 - **Status**: PENDING  
@@ -114,25 +90,33 @@ This document tracks the TDD-based refactoring of bee-trace to achieve loose cou
 
 ## Current Architecture State
 
-### Loose Coupling: 70% ✅
+### Loose Coupling: 95% ✅
 - ✅ Configuration system decoupled
 - ✅ ProbeManager abstracted via traits
 - ✅ eBPF management separated  
-- ❌ Event processing still monolithic (main blocker)
-- ❌ Reporting still embedded
+- ✅ Event processing extracted and modularized (4 focused components)
+- ✅ Memory safety improvements with bounds-checked parsing
+- ❌ Reporting still embedded (minor remaining issue)
 
-### High Cohesion: 60% ⚠️
+### High Cohesion: 90% ✅
 - ✅ Each module has clear single responsibility
 - ✅ Deep module design implemented (complex logic hidden)
-- ❌ Event processing crosses multiple concerns (perf buffers + parsing + dispatching)
-- ❌ Main.rs still mixing coordination + implementation
+- ✅ Event processing properly separated (CPU coordination + parsing + processing)
+- ✅ Main.rs simplified with extracted `process_events_with_extracted_logic()`
+- ✅ EventProcessor trait provides clean abstraction
+- ✅ PerfBufferManager handles CPU detection and buffer pooling
 
-## Test Coverage: 112 tests passing ✅
+## Test Coverage: 173 tests passing ✅
 - Configuration system: 11 tests
 - eBPF management: 8 integration tests  
 - ProbeManager: 9 unit tests
 - Individual probe managers: 9 tests
+- Event processing module: 13 tests (NEW - Phase 5)
 - Security event processing: 5 tests
+- Core library: 79 tests
+- Integration tests: 17 tests
+- Test helpers: 4 tests
+- Common library: 16 tests
 - Plus comprehensive coverage across all modules
 
 ## Working Validation ✅
@@ -141,12 +125,13 @@ This document tracks the TDD-based refactoring of bee-trace to achieve loose cou
 - **Evidence**: Args → Configuration → EbpfApplication → ProbeManager flow confirmed
 
 ## Next Action Priority
-**Start Phase 5**: Event Processing Separation is the highest priority to complete the loose coupling goal. The 100+ line monolithic async block in main.rs is the largest remaining architectural debt.
+**Phase 6**: Reporting responsibility separation is now the highest priority. With event processing successfully extracted and modularized, the remaining architectural debt is the scattered SecurityReport logic and mixed event classification concerns.
 
 ## Branch Information
-- **Current Branch**: `refactor/loose-coupling-design`
+- **Phase 5 Branch**: `feature/phase5-event-processing-extraction` (COMPLETED)
+- **PR**: #6 - Complete Phase 5 event processing extraction refactoring
 - **Base**: `main`
-- **Status**: Ready for Phase 5 implementation
+- **Status**: Phase 5 completed, PR ready for merge
 
 ## Development Context
 - **Language**: Rust
