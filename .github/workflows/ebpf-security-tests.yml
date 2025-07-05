@@ -36,7 +36,7 @@ jobs:
         run: |
           # Install required tools
           sudo apt-get update
-          sudo apt-get install -y netcat-openbsd strace python3 python3-pip
+          sudo apt-get install -y netcat-openbsd strace python3 python3-pip jq
           
           # Make test scripts executable
           chmod +x tests/ci/test-orchestrator.sh
@@ -77,16 +77,17 @@ jobs:
         if: always()
         run: |
           echo "## Test Summary for ${{ matrix.test-suite }}"
-          if [ -f tests/ci/results/test-report-*.json ]; then
-            cat tests/ci/results/test-report-*.json | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-print(f\"Status: {data.get('status', 'unknown')}\")
-summary = data.get('summary', {})
-print(f\"Total tests: {summary.get('total_tests', 0)}\")
-print(f\"Failed tests: {summary.get('failed_tests', 0)}\")
-print(f\"Total events detected: {data.get('metrics', {}).get('total_events', 0)}\")
-            "
+          REPORT_FILE=$(ls tests/ci/results/test-report-*.json 2>/dev/null | head -n1)
+          if [ -n "$REPORT_FILE" ] && [ -f "$REPORT_FILE" ]; then
+            STATUS=$(jq -r '.status // "unknown"' "$REPORT_FILE")
+            TOTAL=$(jq -r '.summary.total_tests // 0' "$REPORT_FILE")
+            FAILED=$(jq -r '.summary.failed_tests // 0' "$REPORT_FILE")
+            EVENTS=$(jq -r '.metrics.total_events // 0' "$REPORT_FILE")
+            
+            echo "Status: $STATUS"
+            echo "Total tests: $TOTAL"
+            echo "Failed tests: $FAILED"
+            echo "Total events detected: $EVENTS"
           else
             echo "No test report found"
           fi
@@ -94,17 +95,15 @@ print(f\"Total events detected: {data.get('metrics', {}).get('total_events', 0)}
       - name: Check test results
         run: |
           # Exit with error if any tests failed
-          if [ -f tests/ci/results/test-report-*.json ]; then
-            python3 -c "
-import json, sys, glob
-for report in glob.glob('tests/ci/results/test-report-*.json'):
-    with open(report) as f:
-        data = json.load(f)
-        if data.get('status') != 'passed':
-            print(f\"Test suite failed: {report}\")
-            sys.exit(1)
-            "
-          fi
+          for report in tests/ci/results/test-report-*.json; do
+            if [ -f "$report" ]; then
+              STATUS=$(jq -r '.status // "unknown"' "$report")
+              if [ "$STATUS" != "passed" ]; then
+                echo "Test suite failed: $report"
+                exit 1
+              fi
+            fi
+          done
 
   # Combined test job that runs all suites
   all-tests:
@@ -118,7 +117,7 @@ for report in glob.glob('tests/ci/results/test-report-*.json'):
       - name: Set up test environment
         run: |
           sudo apt-get update
-          sudo apt-get install -y netcat-openbsd strace python3 python3-pip
+          sudo apt-get install -y netcat-openbsd strace python3 python3-pip jq
           chmod +x tests/ci/test-orchestrator.sh
           chmod +x tests/ci/lib/common.sh
           chmod +x tests/ci/scenarios/*.sh
@@ -165,22 +164,27 @@ for report in glob.glob('tests/ci/results/test-report-*.json'):
           
           for suite in file-monitor network-monitor memory-monitor; do
             echo "### ${suite}" >> summary.md
-            if [ -d "artifacts/test-report-${suite}" ]; then
-              python3 -c "
-import json, glob
-reports = glob.glob(f'artifacts/test-report-${suite}/*.json')
-if reports:
-    with open(reports[0]) as f:
-        data = json.load(f)
-        status = '✅ PASSED' if data.get('status') == 'passed' else '❌ FAILED'
-        print(f\"Status: {status}\")
-        summary = data.get('summary', {})
-        print(f\"- Total tests: {summary.get('total_tests', 0)}\")
-        print(f\"- Failed tests: {summary.get('failed_tests', 0)}\")
-        print(f\"- Events detected: {data.get('metrics', {}).get('total_events', 0)}\")
-else:
-    print('No report found')
-              " >> summary.md
+            REPORT_DIR="artifacts/test-report-${suite}"
+            if [ -d "$REPORT_DIR" ]; then
+              REPORT_FILE=$(find "$REPORT_DIR" -name "*.json" -type f | head -n1)
+              if [ -n "$REPORT_FILE" ] && [ -f "$REPORT_FILE" ]; then
+                STATUS=$(jq -r '.status // "unknown"' "$REPORT_FILE")
+                if [ "$STATUS" = "passed" ]; then
+                  echo "Status: ✅ PASSED" >> summary.md
+                else
+                  echo "Status: ❌ FAILED" >> summary.md
+                fi
+                
+                TOTAL=$(jq -r '.summary.total_tests // 0' "$REPORT_FILE")
+                FAILED=$(jq -r '.summary.failed_tests // 0' "$REPORT_FILE")
+                EVENTS=$(jq -r '.metrics.total_events // 0' "$REPORT_FILE")
+                
+                echo "- Total tests: $TOTAL" >> summary.md
+                echo "- Failed tests: $FAILED" >> summary.md
+                echo "- Events detected: $EVENTS" >> summary.md
+              else
+                echo "No report found" >> summary.md
+              fi
             else
               echo "No results available" >> summary.md
             fi
