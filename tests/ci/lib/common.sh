@@ -56,25 +56,56 @@ record_test_result() {
     local message="${4:-}"
     local duration="${5:-0}"
     
+    # Use Python with proper JSON escaping
     python3 -c "
 import json
 import sys
+import os
 
-with open('${results_file}', 'r') as f:
-    data = json.load(f)
+results_file = '${results_file}'
+test_name = '''${test_name}'''
+status = '''${status}'''
+message = '''${message}'''
+duration = ${duration}
+
+try:
+    with open(results_file, 'r') as f:
+        data = json.load(f)
+except:
+    data = {'test_suite': 'unknown', 'tests': []}
 
 test_result = {
-    'name': '${test_name}',
-    'status': '${status}',
-    'message': '${message}',
-    'duration': ${duration}
+    'name': test_name,
+    'status': status,
+    'message': message.replace('\x1b', '\\x1b'),  # Escape ANSI codes
+    'duration': duration
 }
 
 data['tests'].append(test_result)
 
+with open(results_file, 'w') as f:
+    json.dump(data, f, indent=2)
+" 2>/dev/null || {
+    # Fallback: create simple test result without message
+    python3 -c "
+import json
+try:
+    with open('${results_file}', 'r') as f:
+        data = json.load(f)
+except:
+    data = {'test_suite': 'unknown', 'tests': []}
+
+data['tests'].append({
+    'name': '''${test_name}''',
+    'status': '''${status}''',
+    'message': 'Error message contained invalid characters',
+    'duration': ${duration}
+})
+
 with open('${results_file}', 'w') as f:
     json.dump(data, f, indent=2)
 "
+}
 }
 
 # Execute test with timing
