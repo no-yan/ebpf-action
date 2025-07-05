@@ -22,13 +22,13 @@ test_ssh_key_access() {
     
     sleep 2
     
-    # Verify detection (using more lenient pattern for initial testing)
-    if wait_for_event "${LOG_FILE}" "Event sent.*userspace\|id_rsa\|SENSITIVE" 10 "SSH key access"; then
+    # Verify detection using actual log format
+    if wait_for_event "${LOG_FILE}" "SECRET_FILE.*id_rsa\|SECRET_FILE.*test_key" 10 "SSH key access"; then
         return 0
     else
-        log_warning "Expected pattern not found, checking for any file access events..."
-        if wait_for_event "${LOG_FILE}" "Event sent" 5 "any file access"; then
-            log_info "Found general file access events"
+        log_warning "SSH key specific pattern not found, checking for any SECRET_FILE events..."
+        if wait_for_event "${LOG_FILE}" "SECRET_FILE" 5 "any secret file access"; then
+            log_info "Found general secret file access events"
             return 0
         fi
         return 1
@@ -46,13 +46,13 @@ test_env_file_access() {
     
     sleep 2
     
-    # Verify detection (using more lenient pattern for initial testing)
-    if wait_for_event "${LOG_FILE}" "Event sent.*userspace\|\.env\|SENSITIVE" 10 "Environment file access"; then
+    # Verify detection using actual log format  
+    if wait_for_event "${LOG_FILE}" "SECRET_FILE.*\.env" 10 "Environment file access"; then
         return 0
     else
-        log_warning "Expected pattern not found, checking for any file access events..."
-        if wait_for_event "${LOG_FILE}" "Event sent" 5 "any file access"; then
-            log_info "Found general file access events"
+        log_warning ".env specific pattern not found, checking for any SECRET_FILE events..."
+        if wait_for_event "${LOG_FILE}" "SECRET_FILE" 5 "any secret file access"; then
+            log_info "Found general secret file access events"
             return 0
         fi
         return 1
@@ -127,8 +127,10 @@ test_rapid_file_access() {
     
     sleep 3
     
-    # Check for multiple events
-    local event_count=$(grep -c "SENSITIVE.*FILE" "${LOG_FILE}" || echo "0")
+    # Check for multiple events using actual log format
+    local event_count=$(grep -c "SECRET_FILE.*secret.*\.key" "${LOG_FILE}" 2>/dev/null || echo "0")
+    # Remove any newlines from the count
+    event_count=$(echo "$event_count" | tr -d '\n\r')
     if [ "${event_count}" -ge 10 ]; then
         return 0
     else
