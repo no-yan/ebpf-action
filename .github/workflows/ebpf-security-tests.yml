@@ -49,6 +49,7 @@ jobs:
           docker buildx bake --load
           
       - name: Run eBPF Security Tests - ${{ matrix.test-suite }}
+        timeout-minutes: 10
         run: |
           export VERBOSE=true
           export TEST_TIMEOUT=180
@@ -142,6 +143,7 @@ jobs:
           docker buildx bake --load
 
       - name: Run all eBPF Security Tests
+        timeout-minutes: 25
         run: |
           export VERBOSE=true
           export TEST_TIMEOUT=300
