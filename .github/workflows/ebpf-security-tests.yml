@@ -77,8 +77,20 @@ jobs:
         if: always()
         run: |
           echo "## Test Summary for ${{ matrix.test-suite }}"
+          echo "### Debug Info"
+          echo "Working directory: $(pwd)"
+          echo "Results directory contents:"
+          ls -la tests/ci/results/ || echo "Results directory not found"
+          
+          echo "### Test Report"
           REPORT_FILE=$(ls tests/ci/results/test-report-*.json 2>/dev/null | head -n1)
           if [ -n "$REPORT_FILE" ] && [ -f "$REPORT_FILE" ]; then
+            echo "Found report file: $REPORT_FILE"
+            echo "File size: $(stat -c%s "$REPORT_FILE") bytes"
+            echo "File contents:"
+            cat "$REPORT_FILE"
+            echo ""
+            
             STATUS=$(jq -r '.status // "unknown"' "$REPORT_FILE")
             TOTAL=$(jq -r '.summary.total_tests // 0' "$REPORT_FILE")
             FAILED=$(jq -r '.summary.failed_tests // 0' "$REPORT_FILE")
@@ -90,6 +102,8 @@ jobs:
             echo "Total events detected: $EVENTS"
           else
             echo "No test report found"
+            echo "Available files in tests/ci/results/:"
+            find tests/ci/ -name "*.json" -o -name "*.log" 2>/dev/null || echo "No files found"
           fi
 
       - name: Check test results
