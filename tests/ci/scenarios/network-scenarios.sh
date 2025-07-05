@@ -25,7 +25,7 @@ test_suspicious_ports() {
     sleep 2
     
     # Verify detection
-    if wait_for_event "${LOG_FILE}" "NETWORK.*4444\|NETWORK.*6667" 5 "Suspicious port connections"; then
+    if wait_for_event "${LOG_FILE}" "NETWORK.*<ipv4>:4444\|NETWORK.*<ipv4>:6667" 5 "Suspicious port connections"; then
         return 0
     else
         return 1
@@ -44,7 +44,7 @@ test_mining_pool_connections() {
     sleep 2
     
     # Verify detection
-    if wait_for_event "${LOG_FILE}" "NETWORK.*3333\|NETWORK.*9999\|NETWORK.*14444" 5 "Mining pool connections"; then
+    if wait_for_event "${LOG_FILE}" "NETWORK.*<ipv4>:3333\|NETWORK.*<ipv4>:9999\|NETWORK.*<ipv4>:14444" 5 "Mining pool connections"; then
         return 0
     else
         return 1
@@ -68,7 +68,7 @@ test_dns_exfiltration() {
     sleep 2
     
     # Check for DNS activity
-    if wait_for_event "${LOG_FILE}" "NETWORK.*53.*UDP" 5 "DNS activity"; then
+    if wait_for_event "${LOG_FILE}" "NETWORK.*<ipv4>:53.*UDP" 5 "DNS activity"; then
         return 0
     else
         return 1
@@ -88,7 +88,7 @@ test_rapid_connections() {
     sleep 3
     
     # Check for multiple events
-    local event_count=$(grep -c "NETWORK.*TCP" "${LOG_FILE}" 2>/dev/null || echo "0")
+    local event_count=$(grep -c "NETWORK.*<ipv4>.*TCP" "${LOG_FILE}" 2>/dev/null || echo "0")
     # Remove any newlines from the count
     event_count=$(echo "$event_count" | tr -d '\n\r')
     if [ "${event_count}" -ge 15 ]; then
@@ -117,7 +117,7 @@ test_c2_connections() {
     sleep 2
     
     # Verify detection
-    if wait_for_event "${LOG_FILE}" "NETWORK.*185\.199\|NETWORK.*8443" 5 "C2 connections"; then
+    if wait_for_event "${LOG_FILE}" "NETWORK.*<ipv4>:8443" 5 "C2 connections"; then
         return 0
     else
         return 1
@@ -137,7 +137,7 @@ test_exfiltration_ports() {
     sleep 2
     
     # Verify detection
-    if wait_for_event "${LOG_FILE}" "NETWORK.*21\|NETWORK.*22\|NETWORK.*445" 5 "Exfiltration ports"; then
+    if wait_for_event "${LOG_FILE}" "NETWORK.*<ipv4>:21\|NETWORK.*<ipv4>:22\|NETWORK.*<ipv4>:445" 5 "Exfiltration ports"; then
         return 0
     else
         return 1
@@ -157,7 +157,7 @@ test_localhost_connections() {
     sleep 2
     
     # Verify detection
-    if wait_for_event "${LOG_FILE}" "NETWORK.*127\.0\.0\.1\|NETWORK.*::1" 5 "Localhost connections"; then
+    if wait_for_event "${LOG_FILE}" "NETWORK.*<ipv4>:" 5 "Localhost connections"; then
         return 0
     else
         return 1
@@ -176,7 +176,7 @@ test_udp_suspicious() {
     sleep 2
     
     # Verify detection
-    if wait_for_event "${LOG_FILE}" "NETWORK.*UDP" 5 "UDP traffic"; then
+    if wait_for_event "${LOG_FILE}" "NETWORK.*<ipv4>.*UDP" 5 "UDP traffic"; then
         return 0
     else
         return 1
@@ -202,7 +202,7 @@ test_port_scanning() {
     sleep 3
     
     # Check for scan pattern
-    local scan_events=$(grep -c "NETWORK.*192\.168\.1\.50" "${LOG_FILE}" 2>/dev/null || echo "0")
+    local scan_events=$(grep -c "NETWORK.*<ipv4>:" "${LOG_FILE}" 2>/dev/null || echo "0")
     # Remove any newlines from the count
     scan_events=$(echo "$scan_events" | tr -d '\n\r')
     if [ "${scan_events}" -ge 8 ]; then
@@ -229,7 +229,7 @@ test_normal_traffic() {
     
     # These should be logged but check they're not flagged as highly suspicious
     # (This is more about ensuring the system doesn't crash on normal traffic)
-    local events=$(sed -n '/=== NORMAL TRAFFIC TEST START ===/,$p' "${LOG_FILE}" | grep -c "NETWORK" 2>/dev/null || echo "0")
+    local events=$(sed -n '/=== NORMAL TRAFFIC TEST START ===/,$p' "${LOG_FILE}" | grep -c "NETWORK.*<ipv4>" 2>/dev/null || echo "0")
     # Remove any newlines from the count
     events=$(echo "$events" | tr -d '\n\r')
     

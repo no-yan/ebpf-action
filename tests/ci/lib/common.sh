@@ -166,17 +166,19 @@ generate_file_access() {
     tail -n 1 "${file_path}" >/dev/null 2>&1 || true
 }
 
-# Generate network connection
+# Generate network connection inside the container
 generate_network_connection() {
     local host="$1"
     local port="$2"
     local timeout="${3:-1}"
+    local container_name="${CONTAINER_NAME:-bee-trace-test}"
     
-    # Try to connect (will likely fail/timeout for test IPs)
-    timeout ${timeout}s nc -z "${host}" "${port}" 2>/dev/null || true
+    # Run network connection attempts inside the container where eBPF is monitoring
+    docker exec "${container_name}" timeout ${timeout}s nc -z "${host}" "${port}" 2>/dev/null || true
+    docker exec "${container_name}" timeout ${timeout}s bash -c "echo >/dev/tcp/${host}/${port}" 2>/dev/null || true
     
-    # Alternative methods
-    timeout ${timeout}s bash -c "echo >/dev/tcp/${host}/${port}" 2>/dev/null || true
+    # Additional method using wget/curl if available
+    docker exec "${container_name}" timeout ${timeout}s wget --spider --timeout=1 "http://${host}:${port}" 2>/dev/null || true
 }
 
 # Generate memory access attempt

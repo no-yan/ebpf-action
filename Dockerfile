@@ -39,6 +39,12 @@ EOF
 ################################################################################
 FROM debian:bullseye-slim AS final
 
+# Install networking tools for testing
+RUN apt-get update && \
+    apt-get install -y netcat-openbsd wget curl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 # Create a non-privileged user that the app will run under.
 # See https://docs.docker.com/go/dockerfile-user-best-practices/
 ARG UID=10001
