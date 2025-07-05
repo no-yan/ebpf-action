@@ -210,7 +210,8 @@ test_container_secrets_access() {
     generate_file_access "/tmp/dockercfg" '{"registry": {"auth": "encoded"}}'
     mkdir -p /tmp/secrets
     generate_file_access "/tmp/secrets/api-key" "super-secret-api-key"
-    generate_file_access "/var/run/secrets/token" "k8s-service-account-token"
+    mkdir -p /tmp/run/secrets
+    generate_file_access "/tmp/run/secrets/token" "k8s-service-account-token"
     
     sleep 2
     

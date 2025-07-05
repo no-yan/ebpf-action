@@ -108,26 +108,38 @@ with open('${results_file}', 'w') as f:
 }
 }
 
-# Execute test with timing
+# Execute test with timing and timeout
 run_test() {
     local test_name="$1"
     local test_function="$2"
     local results_file="$3"
+    local timeout="${4:-300}"  # Default 5 minute timeout per test
     
-    log_info "Running test: ${test_name}"
+    log_info "Running test: ${test_name} (timeout: ${timeout}s)"
     
     local start_time=$(date +%s)
     local status="failed"
     local message=""
     
-    if output=$(${test_function} 2>&1); then
+    # Run test function with timeout
+    if timeout "${timeout}s" bash -c "$(declare -f ${test_function}); ${test_function}" > /tmp/test_output 2>&1; then
         status="passed"
         log_success "Test passed: ${test_name}"
+        message=$(cat /tmp/test_output)
     else
-        message="${output}"
-        log_error "Test failed: ${test_name}"
+        local exit_code=$?
+        message=$(cat /tmp/test_output 2>/dev/null || echo "No output captured")
+        if [ $exit_code -eq 124 ]; then
+            message="Test timed out after ${timeout} seconds. ${message}"
+            log_error "Test timed out: ${test_name}"
+        else
+            log_error "Test failed: ${test_name}"
+        fi
         log_error "${message}"
     fi
+    
+    # Cleanup
+    rm -f /tmp/test_output
     
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))

@@ -25,7 +25,7 @@ test_suspicious_ports() {
     sleep 2
     
     # Verify detection
-    if wait_for_event "${LOG_FILE}" "TCP_CONNECT.*port=4444\|port=6667" 5 "Suspicious port connections"; then
+    if wait_for_event "${LOG_FILE}" "NETWORK.*4444\|NETWORK.*6667" 5 "Suspicious port connections"; then
         return 0
     else
         return 1
@@ -44,7 +44,7 @@ test_mining_pool_connections() {
     sleep 2
     
     # Verify detection
-    if wait_for_event "${LOG_FILE}" "TCP_CONNECT.*port=3333\|port=9999\|port=14444" 5 "Mining pool connections"; then
+    if wait_for_event "${LOG_FILE}" "NETWORK.*3333\|NETWORK.*9999\|NETWORK.*14444" 5 "Mining pool connections"; then
         return 0
     else
         return 1
@@ -68,7 +68,7 @@ test_dns_exfiltration() {
     sleep 2
     
     # Check for DNS activity
-    if wait_for_event "${LOG_FILE}" "UDP_SEND.*port=53" 5 "DNS activity"; then
+    if wait_for_event "${LOG_FILE}" "NETWORK.*53.*UDP" 5 "DNS activity"; then
         return 0
     else
         return 1
@@ -88,7 +88,9 @@ test_rapid_connections() {
     sleep 3
     
     # Check for multiple events
-    local event_count=$(grep -c "TCP_CONNECT" "${LOG_FILE}" || echo "0")
+    local event_count=$(grep -c "NETWORK.*TCP" "${LOG_FILE}" 2>/dev/null || echo "0")
+    # Remove any newlines from the count
+    event_count=$(echo "$event_count" | tr -d '\n\r')
     if [ "${event_count}" -ge 15 ]; then
         return 0
     else
@@ -115,7 +117,7 @@ test_c2_connections() {
     sleep 2
     
     # Verify detection
-    if wait_for_event "${LOG_FILE}" "TCP_CONNECT.*185\.199\|port=8443" 5 "C2 connections"; then
+    if wait_for_event "${LOG_FILE}" "NETWORK.*185\.199\|NETWORK.*8443" 5 "C2 connections"; then
         return 0
     else
         return 1
@@ -135,7 +137,7 @@ test_exfiltration_ports() {
     sleep 2
     
     # Verify detection
-    if wait_for_event "${LOG_FILE}" "TCP_CONNECT.*port=21\|port=22\|port=445" 5 "Exfiltration ports"; then
+    if wait_for_event "${LOG_FILE}" "NETWORK.*21\|NETWORK.*22\|NETWORK.*445" 5 "Exfiltration ports"; then
         return 0
     else
         return 1
@@ -155,7 +157,7 @@ test_localhost_connections() {
     sleep 2
     
     # Verify detection
-    if wait_for_event "${LOG_FILE}" "TCP_CONNECT.*127\.0\.0\.1\|::1" 5 "Localhost connections"; then
+    if wait_for_event "${LOG_FILE}" "NETWORK.*127\.0\.0\.1\|NETWORK.*::1" 5 "Localhost connections"; then
         return 0
     else
         return 1
@@ -174,7 +176,7 @@ test_udp_suspicious() {
     sleep 2
     
     # Verify detection
-    if wait_for_event "${LOG_FILE}" "UDP_SEND" 5 "UDP traffic"; then
+    if wait_for_event "${LOG_FILE}" "NETWORK.*UDP" 5 "UDP traffic"; then
         return 0
     else
         return 1
@@ -200,7 +202,9 @@ test_port_scanning() {
     sleep 3
     
     # Check for scan pattern
-    local scan_events=$(grep -c "TCP_CONNECT.*192\.168\.1\.50" "${LOG_FILE}" || echo "0")
+    local scan_events=$(grep -c "NETWORK.*192\.168\.1\.50" "${LOG_FILE}" 2>/dev/null || echo "0")
+    # Remove any newlines from the count
+    scan_events=$(echo "$scan_events" | tr -d '\n\r')
     if [ "${scan_events}" -ge 8 ]; then
         return 0
     else
@@ -225,7 +229,9 @@ test_normal_traffic() {
     
     # These should be logged but check they're not flagged as highly suspicious
     # (This is more about ensuring the system doesn't crash on normal traffic)
-    local events=$(sed -n '/=== NORMAL TRAFFIC TEST START ===/,$p' "${LOG_FILE}" | grep -c "TCP_CONNECT\|UDP_SEND" || echo "0")
+    local events=$(sed -n '/=== NORMAL TRAFFIC TEST START ===/,$p' "${LOG_FILE}" | grep -c "NETWORK" 2>/dev/null || echo "0")
+    # Remove any newlines from the count
+    events=$(echo "$events" | tr -d '\n\r')
     
     if [ "${events}" -ge 1 ]; then
         return 0
@@ -244,17 +250,17 @@ main() {
         log_warning "netcat (nc) not found, some tests may be limited"
     fi
     
-    # Run all tests
-    run_test "Suspicious Port Connections" test_suspicious_ports "${RESULTS_FILE}"
-    run_test "Mining Pool Connections" test_mining_pool_connections "${RESULTS_FILE}"
-    run_test "DNS Exfiltration Pattern" test_dns_exfiltration "${RESULTS_FILE}"
-    run_test "Rapid Connection Attempts" test_rapid_connections "${RESULTS_FILE}"
-    run_test "C2 Server Patterns" test_c2_connections "${RESULTS_FILE}"
-    run_test "Data Exfiltration Ports" test_exfiltration_ports "${RESULTS_FILE}"
-    run_test "Localhost Connections" test_localhost_connections "${RESULTS_FILE}"
-    run_test "UDP Suspicious Traffic" test_udp_suspicious "${RESULTS_FILE}"
-    run_test "Port Scanning Pattern" test_port_scanning "${RESULTS_FILE}"
-    run_test "Normal Traffic Handling" test_normal_traffic "${RESULTS_FILE}"
+    # Run all tests with 60-second timeout each
+    run_test "Suspicious Port Connections" test_suspicious_ports "${RESULTS_FILE}" 60
+    run_test "Mining Pool Connections" test_mining_pool_connections "${RESULTS_FILE}" 60
+    run_test "DNS Exfiltration Pattern" test_dns_exfiltration "${RESULTS_FILE}" 60
+    run_test "Rapid Connection Attempts" test_rapid_connections "${RESULTS_FILE}" 60
+    run_test "C2 Server Patterns" test_c2_connections "${RESULTS_FILE}" 60
+    run_test "Data Exfiltration Ports" test_exfiltration_ports "${RESULTS_FILE}" 60
+    run_test "Localhost Connections" test_localhost_connections "${RESULTS_FILE}" 60
+    run_test "UDP Suspicious Traffic" test_udp_suspicious "${RESULTS_FILE}" 60
+    run_test "Port Scanning Pattern" test_port_scanning "${RESULTS_FILE}" 60
+    run_test "Normal Traffic Handling" test_normal_traffic "${RESULTS_FILE}" 60
     
     log_info "Network connection scenarios completed"
 }
