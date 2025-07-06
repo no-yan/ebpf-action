@@ -6,7 +6,6 @@
 use bee_trace::configuration::types::*;
 use bee_trace::configuration::Configuration;
 use bee_trace::errors::{BeeTraceError, ProbeType};
-use std::path::PathBuf;
 use std::time::Duration;
 
 // Test modules following t-wada's principles
@@ -125,6 +124,223 @@ mod configuration_validation_tests {
     }
 }
 
+mod configuration_file_loading_tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn should_load_yaml_configuration_from_file() {
+        let yaml_content = r#"
+file_monitoring:
+  sensitive_files:
+    - "custom.key"
+    - "secret.json"
+  sensitive_extensions:
+    - ".custom"
+  watch_directories: []
+  exclude_patterns: []
+network_monitoring:
+  suspicious_ports:
+    - 9999
+  safe_ports: []
+  blocked_ips:
+    - "192.168.1.1"
+  allowed_ips: []
+memory_monitoring:
+  monitor_ptrace: false
+  monitor_process_vm: true
+  excluded_processes:
+    - "custom_process"
+blocked_ips: []
+blocked_domains: []
+watch_files: []
+secret_env_patterns: []
+"#;
+
+        let mut temp_file = NamedTempFile::new().unwrap();
+        write!(temp_file, "{}", yaml_content).unwrap();
+
+        let config = Configuration::builder()
+            .from_config_file(temp_file.path())
+            .unwrap()
+            .build()
+            .unwrap();
+
+        assert_eq!(config.security.file_monitoring.sensitive_files.len(), 2);
+        assert!(config
+            .security
+            .file_monitoring
+            .sensitive_files
+            .contains(&"custom.key".to_string()));
+        assert!(config
+            .security
+            .network_monitoring
+            .suspicious_ports
+            .contains(&9999));
+        assert!(!config.security.memory_monitoring.monitor_ptrace);
+    }
+
+    #[test]
+    fn should_load_json_configuration_from_file() {
+        let json_content = r#"
+{
+  "file_monitoring": {
+    "sensitive_files": ["test.key"],
+    "sensitive_extensions": [".test"],
+    "watch_directories": ["/test"],
+    "exclude_patterns": []
+  },
+  "network_monitoring": {
+    "suspicious_ports": [8080],
+    "safe_ports": [80],
+    "blocked_ips": [],
+    "allowed_ips": ["127.0.0.1"]
+  },
+  "memory_monitoring": {
+    "monitor_ptrace": true,
+    "monitor_process_vm": false,
+    "excluded_processes": []
+  },
+  "blocked_ips": [],
+  "blocked_domains": [],
+  "watch_files": [],
+  "secret_env_patterns": []
+}
+"#;
+
+        let mut temp_file = NamedTempFile::with_suffix(".json").unwrap();
+        write!(temp_file, "{}", json_content).unwrap();
+
+        let config = Configuration::builder()
+            .from_config_file(temp_file.path())
+            .unwrap()
+            .build()
+            .unwrap();
+
+        assert_eq!(config.security.file_monitoring.sensitive_files.len(), 1);
+        assert!(config
+            .security
+            .file_monitoring
+            .sensitive_files
+            .contains(&"test.key".to_string()));
+        assert!(config
+            .security
+            .network_monitoring
+            .suspicious_ports
+            .contains(&8080));
+        assert!(!config.security.memory_monitoring.monitor_process_vm);
+    }
+
+    #[test]
+    fn should_handle_invalid_yaml_config() {
+        let invalid_yaml = "invalid: yaml: content: [";
+
+        let mut temp_file = NamedTempFile::new().unwrap();
+        write!(temp_file, "{}", invalid_yaml).unwrap();
+
+        let result = Configuration::builder().from_config_file(temp_file.path());
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BeeTraceError::ConfigError { message } => {
+                assert!(message.contains("Failed to parse YAML config"));
+            }
+            _ => panic!("Expected ConfigError"),
+        }
+    }
+
+    #[test]
+    fn should_handle_missing_config_file() {
+        let result = Configuration::builder().from_config_file("/nonexistent/path/config.yaml");
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            BeeTraceError::ConfigError { message } => {
+                assert!(message.contains("Failed to read config file"));
+            }
+            _ => panic!("Expected ConfigError"),
+        }
+    }
+
+    #[test]
+    fn should_parse_yaml_from_string() {
+        let yaml_content = r#"
+file_monitoring:
+  sensitive_files: ["string.key"]
+  sensitive_extensions: []
+  watch_directories: []
+  exclude_patterns: []
+network_monitoring:
+  suspicious_ports: []
+  safe_ports: []
+  blocked_ips: []
+  allowed_ips: []
+memory_monitoring:
+  monitor_ptrace: true
+  monitor_process_vm: true
+  excluded_processes: []
+blocked_ips: []
+blocked_domains: []
+watch_files: []
+secret_env_patterns: []
+"#;
+
+        let config = Configuration::builder()
+            .from_yaml_str(yaml_content)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        assert!(config
+            .security
+            .file_monitoring
+            .sensitive_files
+            .contains(&"string.key".to_string()));
+    }
+
+    #[test]
+    fn should_parse_json_from_string() {
+        let json_content = r#"
+{
+  "file_monitoring": {
+    "sensitive_files": ["json.key"],
+    "sensitive_extensions": [],
+    "watch_directories": [],
+    "exclude_patterns": []
+  },
+  "network_monitoring": {
+    "suspicious_ports": [],
+    "safe_ports": [],
+    "blocked_ips": [],
+    "allowed_ips": []
+  },
+  "memory_monitoring": {
+    "monitor_ptrace": true,
+    "monitor_process_vm": true,
+    "excluded_processes": []
+  },
+  "blocked_ips": [],
+  "blocked_domains": [],
+  "watch_files": [],
+  "secret_env_patterns": []
+}
+"#;
+
+        let config = Configuration::builder()
+            .from_json_str(json_content)
+            .unwrap()
+            .build()
+            .unwrap();
+
+        assert!(config
+            .security
+            .file_monitoring
+            .sensitive_files
+            .contains(&"json.key".to_string()));
+    }
+}
+
 mod configuration_integration_tests {
     use super::*;
 
@@ -133,8 +349,6 @@ mod configuration_integration_tests {
         let config = Configuration::builder()
             .from_cli_args(&["--probe-type", "all", "--verbose"])
             .unwrap()
-            .from_config_file("test-config.yaml")
-            .unwrap()
             .from_environment()
             .unwrap()
             .build()
@@ -142,10 +356,6 @@ mod configuration_integration_tests {
 
         assert_eq!(config.monitoring.probe_types, ProbeType::all());
         assert!(config.output.verbose);
-        assert_eq!(
-            config.runtime.config_file,
-            Some(PathBuf::from("test-config.yaml"))
-        );
     }
 
     #[test]

@@ -5,6 +5,8 @@
 
 use super::{Configuration, MonitoringConfig, OutputConfig, RuntimeConfig, SecurityConfig};
 use crate::errors::{BeeTraceError, ProbeType};
+use std::fs;
+use std::path::Path;
 use std::time::Duration;
 
 /// Builder for creating Configuration instances
@@ -112,13 +114,48 @@ impl ConfigurationBuilder {
         Ok(self)
     }
 
-    /// Configure from YAML configuration file
-    pub fn from_config_file<P: AsRef<std::path::Path>>(
-        mut self,
-        path: P,
-    ) -> Result<Self, BeeTraceError> {
-        // Store the path for now - actual YAML parsing can be added later
-        self.runtime.config_file = Some(path.as_ref().to_path_buf());
+    /// Configure from YAML or JSON configuration file
+    pub fn from_config_file<P: AsRef<Path>>(self, path: P) -> Result<Self, BeeTraceError> {
+        let path = path.as_ref();
+        let content = fs::read_to_string(path).map_err(|e| BeeTraceError::ConfigError {
+            message: format!("Failed to read config file {}: {}", path.display(), e),
+        })?;
+
+        // Auto-detect format by extension or content
+        let mut builder = if path.extension().and_then(|s| s.to_str()) == Some("json")
+            || content.trim_start().starts_with('{')
+        {
+            self.from_json_str(&content)?
+        } else {
+            self.from_yaml_str(&content)?
+        };
+
+        // Store the path for reference
+        builder.runtime.config_file = Some(path.to_path_buf());
+        Ok(builder)
+    }
+
+    /// Configure from YAML string
+    pub fn from_yaml_str(mut self, yaml: &str) -> Result<Self, BeeTraceError> {
+        let config: SecurityConfig =
+            serde_yaml::from_str(yaml).map_err(|e| BeeTraceError::ConfigError {
+                message: format!("Failed to parse YAML config: {}", e),
+            })?;
+
+        // Merge the loaded config with existing config
+        self.security = config;
+        Ok(self)
+    }
+
+    /// Configure from JSON string
+    pub fn from_json_str(mut self, json: &str) -> Result<Self, BeeTraceError> {
+        let config: SecurityConfig =
+            serde_json::from_str(json).map_err(|e| BeeTraceError::ConfigError {
+                message: format!("Failed to parse JSON config: {}", e),
+            })?;
+
+        // Merge the loaded config with existing config
+        self.security = config;
         Ok(self)
     }
 
