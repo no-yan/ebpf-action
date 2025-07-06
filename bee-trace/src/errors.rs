@@ -4,6 +4,7 @@
 //! A Philosophy of Software Design principles - errors are well-defined
 //! and provide clear context for debugging.
 
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -42,7 +43,7 @@ pub enum BeeTraceError {
     MapNotFound { map_name: String },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ProbeType {
     FileMonitor,
     NetworkMonitor,

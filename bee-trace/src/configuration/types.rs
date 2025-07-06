@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Duration;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MonitoringConfig {
     pub probe_types: Vec<ProbeType>,
     pub duration: Option<Duration>,
@@ -18,7 +18,7 @@ pub struct MonitoringConfig {
     pub cpu_limit: Option<u8>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OutputConfig {
     pub verbose: bool,
     pub quiet: bool,
@@ -34,7 +34,6 @@ pub struct SecurityConfig {
     pub file_monitoring: FileMonitoringConfig,
     pub network_monitoring: NetworkMonitoringConfig,
     pub memory_monitoring: MemoryMonitoringConfig,
-    pub blocked_ips: Vec<String>,
     pub blocked_domains: Vec<String>,
     pub watch_files: Vec<String>,
     pub secret_env_patterns: Vec<String>,
@@ -63,27 +62,27 @@ pub struct MemoryMonitoringConfig {
     pub excluded_processes: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RuntimeConfig {
     pub config_file: Option<PathBuf>,
     pub working_directory: PathBuf,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum OutputFormat {
     Json,
     Markdown,
     Csv,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TimestampFormat {
     Unix,
     Iso8601,
     Relative,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SeverityLevel {
     Low,
     Medium,
@@ -166,7 +165,6 @@ impl Default for SecurityConfig {
                     "ltrace".to_string(),
                 ],
             },
-            blocked_ips: vec![],
             blocked_domains: vec![],
             watch_files: vec![],
             secret_env_patterns: vec![],
@@ -181,4 +179,28 @@ impl Default for RuntimeConfig {
             working_directory: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
         }
     }
+}
+
+/// Unified configuration provider trait for security monitoring
+///
+/// Replaces the legacy SecurityConfigProvider trait with optimized lookups
+/// and unified configuration access patterns.
+pub trait ConfigurationProvider {
+    /// Check if a filename is considered sensitive
+    fn is_sensitive_file(&self, filename: &str) -> bool;
+
+    /// Check if a port is considered suspicious
+    fn is_suspicious_port(&self, port: u16) -> bool;
+
+    /// Check if a process should be monitored (not excluded)
+    fn should_monitor_process(&self, process_name: &str) -> bool;
+
+    /// Get access to the underlying security configuration
+    fn get_security_config(&self) -> &SecurityConfig;
+
+    /// Check if an IP address is blocked
+    fn is_ip_blocked(&self, ip: &str) -> bool;
+
+    /// Check if a domain is blocked
+    fn is_domain_blocked(&self, domain: &str) -> bool;
 }

@@ -11,6 +11,7 @@ pub use builder::ConfigurationBuilder;
 pub use types::*;
 
 use crate::errors::{BeeTraceError, ProbeType};
+use std::collections::HashSet;
 
 /// Unified configuration that combines CLI, file, and environment settings
 ///
@@ -94,5 +95,181 @@ impl Configuration {
     /// Get command filter for backward compatibility
     pub fn command_filter(&self) -> Option<&str> {
         self.monitoring.command_filter.as_deref()
+    }
+}
+
+/// Optimized configuration provider implementation with HashSet lookups
+///
+/// This implementation caches commonly accessed values in HashSets for
+/// O(1) lookup performance, making it suitable for high-frequency
+/// security event classification.
+pub struct OptimizedConfigurationProvider {
+    config: Configuration,
+    sensitive_files_set: HashSet<String>,
+    sensitive_extensions_set: HashSet<String>,
+    suspicious_ports_set: HashSet<u16>,
+    excluded_processes_set: HashSet<String>,
+    blocked_ips_set: HashSet<String>,
+    blocked_domains_set: HashSet<String>,
+}
+
+impl OptimizedConfigurationProvider {
+    pub fn new(config: Configuration) -> Self {
+        let sensitive_files_set: HashSet<String> = config
+            .security
+            .file_monitoring
+            .sensitive_files
+            .iter()
+            .cloned()
+            .collect();
+
+        let sensitive_extensions_set: HashSet<String> = config
+            .security
+            .file_monitoring
+            .sensitive_extensions
+            .iter()
+            .cloned()
+            .collect();
+
+        let suspicious_ports_set: HashSet<u16> = config
+            .security
+            .network_monitoring
+            .suspicious_ports
+            .iter()
+            .cloned()
+            .collect();
+
+        let excluded_processes_set: HashSet<String> = config
+            .security
+            .memory_monitoring
+            .excluded_processes
+            .iter()
+            .cloned()
+            .collect();
+
+        let blocked_ips_set: HashSet<String> = config
+            .security
+            .network_monitoring
+            .blocked_ips
+            .iter()
+            .cloned()
+            .collect();
+
+        let blocked_domains_set: HashSet<String> =
+            config.security.blocked_domains.iter().cloned().collect();
+
+        Self {
+            config,
+            sensitive_files_set,
+            sensitive_extensions_set,
+            suspicious_ports_set,
+            excluded_processes_set,
+            blocked_ips_set,
+            blocked_domains_set,
+        }
+    }
+
+    /// Get access to the underlying configuration
+    pub fn config(&self) -> &Configuration {
+        &self.config
+    }
+}
+
+impl ConfigurationProvider for OptimizedConfigurationProvider {
+    fn is_sensitive_file(&self, filename: &str) -> bool {
+        // Check exact filename match first
+        if self.sensitive_files_set.contains(filename) {
+            return true;
+        }
+
+        // Check file extension
+        if let Some(extension_pos) = filename.rfind('.') {
+            let extension = &filename[extension_pos..];
+            if self.sensitive_extensions_set.contains(extension) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    fn is_suspicious_port(&self, port: u16) -> bool {
+        self.suspicious_ports_set.contains(&port)
+    }
+
+    fn should_monitor_process(&self, process_name: &str) -> bool {
+        !self.excluded_processes_set.contains(process_name)
+    }
+
+    fn get_security_config(&self) -> &SecurityConfig {
+        &self.config.security
+    }
+
+    fn is_ip_blocked(&self, ip: &str) -> bool {
+        self.blocked_ips_set.contains(ip)
+    }
+
+    fn is_domain_blocked(&self, domain: &str) -> bool {
+        self.blocked_domains_set.contains(domain)
+    }
+}
+
+// Also implement the trait directly for Configuration for simpler cases
+impl ConfigurationProvider for Configuration {
+    fn is_sensitive_file(&self, filename: &str) -> bool {
+        // Check exact filename match
+        if self
+            .security
+            .file_monitoring
+            .sensitive_files
+            .contains(&filename.to_string())
+        {
+            return true;
+        }
+
+        // Check file extension
+        if let Some(extension_pos) = filename.rfind('.') {
+            let extension = &filename[extension_pos..];
+            if self
+                .security
+                .file_monitoring
+                .sensitive_extensions
+                .contains(&extension.to_string())
+            {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    fn is_suspicious_port(&self, port: u16) -> bool {
+        self.security
+            .network_monitoring
+            .suspicious_ports
+            .contains(&port)
+    }
+
+    fn should_monitor_process(&self, process_name: &str) -> bool {
+        !self
+            .security
+            .memory_monitoring
+            .excluded_processes
+            .contains(&process_name.to_string())
+    }
+
+    fn get_security_config(&self) -> &SecurityConfig {
+        &self.security
+    }
+
+    fn is_ip_blocked(&self, ip: &str) -> bool {
+        self.security
+            .network_monitoring
+            .blocked_ips
+            .contains(&ip.to_string())
+    }
+
+    fn is_domain_blocked(&self, domain: &str) -> bool {
+        self.security.blocked_domains.contains(&domain.to_string())
     }
 }

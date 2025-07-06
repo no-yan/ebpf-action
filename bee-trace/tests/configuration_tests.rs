@@ -22,7 +22,7 @@ mod configuration_builder_tests {
         assert!(!config.monitoring.security_mode);
         assert!(!config.output.verbose);
         assert_eq!(config.output.format, OutputFormat::Json);
-        assert!(config.security.blocked_ips.is_empty());
+        assert!(config.security.network_monitoring.blocked_ips.is_empty());
     }
 
     #[test]
@@ -152,7 +152,6 @@ memory_monitoring:
   monitor_process_vm: true
   excluded_processes:
     - "custom_process"
-blocked_ips: []
 blocked_domains: []
 watch_files: []
 secret_env_patterns: []
@@ -202,7 +201,6 @@ secret_env_patterns: []
     "monitor_process_vm": false,
     "excluded_processes": []
   },
-  "blocked_ips": [],
   "blocked_domains": [],
   "watch_files": [],
   "secret_env_patterns": []
@@ -280,7 +278,6 @@ memory_monitoring:
   monitor_ptrace: true
   monitor_process_vm: true
   excluded_processes: []
-blocked_ips: []
 blocked_domains: []
 watch_files: []
 secret_env_patterns: []
@@ -320,7 +317,6 @@ secret_env_patterns: []
     "monitor_process_vm": true,
     "excluded_processes": []
   },
-  "blocked_ips": [],
   "blocked_domains": [],
   "watch_files": [],
   "secret_env_patterns": []
@@ -396,5 +392,88 @@ mod configuration_integration_tests {
         );
         assert!(config.output.verbose);
         assert!(config.monitoring.security_mode);
+    }
+}
+
+mod configuration_provider_tests {
+    use super::*;
+    use bee_trace::configuration::{ConfigurationProvider, OptimizedConfigurationProvider};
+
+    #[test]
+    fn should_detect_sensitive_files_via_provider() {
+        let config = Configuration::builder().build().unwrap();
+
+        // Test direct implementation
+        assert!(config.is_sensitive_file("id_rsa"));
+        assert!(config.is_sensitive_file("credentials.json"));
+        assert!(config.is_sensitive_file("test.pem"));
+        assert!(!config.is_sensitive_file("regular.txt"));
+
+        // Test optimized implementation
+        let optimized = OptimizedConfigurationProvider::new(config.clone());
+        assert!(optimized.is_sensitive_file("id_rsa"));
+        assert!(optimized.is_sensitive_file("credentials.json"));
+        assert!(optimized.is_sensitive_file("test.pem"));
+        assert!(!optimized.is_sensitive_file("regular.txt"));
+    }
+
+    #[test]
+    fn should_detect_suspicious_ports_via_provider() {
+        let config = Configuration::builder().build().unwrap();
+
+        // Test direct implementation
+        assert!(config.is_suspicious_port(22));
+        assert!(config.is_suspicious_port(3389));
+        assert!(!config.is_suspicious_port(80));
+        assert!(!config.is_suspicious_port(443));
+
+        // Test optimized implementation
+        let optimized = OptimizedConfigurationProvider::new(config.clone());
+        assert!(optimized.is_suspicious_port(22));
+        assert!(optimized.is_suspicious_port(3389));
+        assert!(!optimized.is_suspicious_port(80));
+        assert!(!optimized.is_suspicious_port(443));
+    }
+
+    #[test]
+    fn should_handle_process_monitoring_via_provider() {
+        let config = Configuration::builder().build().unwrap();
+
+        // Test direct implementation
+        assert!(!config.should_monitor_process("gdb"));
+        assert!(!config.should_monitor_process("strace"));
+        assert!(config.should_monitor_process("suspicious_process"));
+
+        // Test optimized implementation
+        let optimized = OptimizedConfigurationProvider::new(config.clone());
+        assert!(!optimized.should_monitor_process("gdb"));
+        assert!(!optimized.should_monitor_process("strace"));
+        assert!(optimized.should_monitor_process("suspicious_process"));
+    }
+
+    #[test]
+    fn should_provide_security_config_access() {
+        let config = Configuration::builder().build().unwrap();
+        let optimized = OptimizedConfigurationProvider::new(config.clone());
+
+        let security_config = optimized.get_security_config();
+        assert!(!security_config.file_monitoring.sensitive_files.is_empty());
+        assert!(!security_config
+            .network_monitoring
+            .suspicious_ports
+            .is_empty());
+        assert!(security_config.memory_monitoring.monitor_ptrace);
+    }
+
+    #[test]
+    fn should_handle_ip_and_domain_blocking() {
+        let config = Configuration::builder().build().unwrap();
+        let optimized = OptimizedConfigurationProvider::new(config.clone());
+
+        // Default config should not block any IPs or domains
+        assert!(!optimized.is_ip_blocked("192.168.1.1"));
+        assert!(!optimized.is_domain_blocked("example.com"));
+        assert!(!config.is_ip_blocked("192.168.1.1"));
+        assert!(!config.is_domain_blocked("example.com"));
     }
 }
