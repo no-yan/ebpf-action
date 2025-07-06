@@ -1,4 +1,4 @@
-use crate::security_config::SecurityConfigProvider;
+use crate::configuration::ConfigurationProvider;
 use crate::SecurityEvent;
 use bee_trace_common::AccessType;
 
@@ -34,12 +34,12 @@ pub trait SecurityEventClassifier {
     fn should_alert(&self, classification: &SecurityClassification) -> bool;
 }
 
-pub struct ConfigurableSecurityClassifier<T: SecurityConfigProvider> {
+pub struct ConfigurableSecurityClassifier<T: ConfigurationProvider> {
     config_provider: T,
     alert_threshold: SeverityLevel,
 }
 
-impl<T: SecurityConfigProvider> ConfigurableSecurityClassifier<T> {
+impl<T: ConfigurationProvider> ConfigurableSecurityClassifier<T> {
     pub fn new(config_provider: T, alert_threshold: SeverityLevel) -> Self {
         Self {
             config_provider,
@@ -51,12 +51,11 @@ impl<T: SecurityConfigProvider> ConfigurableSecurityClassifier<T> {
         &self,
         event: &bee_trace_common::NetworkEvent,
     ) -> SecurityClassification {
-        let config = self.config_provider.get_config();
         let dest_ip_str = event.dest_ip_as_str();
         let port = event.dest_port;
 
-        // Check for suspicious ports first
-        if config.network_monitoring.suspicious_ports.contains(&port) {
+        // Check for suspicious ports first using unified provider
+        if self.config_provider.is_suspicious_port(port) {
             return SecurityClassification {
                 severity: SeverityLevel::High,
                 category: "Suspicious Network Access".to_string(),
@@ -69,7 +68,8 @@ impl<T: SecurityConfigProvider> ConfigurableSecurityClassifier<T> {
             };
         }
 
-        // Check for safe ports
+        // Check for safe ports using config access
+        let config = self.config_provider.get_security_config();
         if config.network_monitoring.safe_ports.contains(&port) {
             // Check if it's to a local address
             if dest_ip_str.starts_with("127.") || dest_ip_str.starts_with("::1") {
@@ -118,32 +118,32 @@ impl<T: SecurityConfigProvider> ConfigurableSecurityClassifier<T> {
 
         match event.access_type {
             AccessType::File => {
-                // Critical files (SSH keys, certificates)
-                if path.contains("id_rsa")
-                    || path.contains("id_dsa")
-                    || path.contains("id_ecdsa")
-                    || path.contains("id_ed25519")
-                    || path.ends_with(".pem")
-                    || path.ends_with(".key")
-                {
-                    SecurityClassification {
-                        severity: SeverityLevel::Critical,
-                        category: "Critical Secret File Access".to_string(),
-                        description: format!("Access to cryptographic key file: {}", path),
-                        risk_score: 95,
-                    }
-                }
-                // High sensitivity files
-                else if path.contains("credentials")
-                    || path.contains("secrets")
-                    || path.contains(".env")
-                    || path.contains("password")
-                {
-                    SecurityClassification {
-                        severity: SeverityLevel::High,
-                        category: "Secret File Access".to_string(),
-                        description: format!("Access to sensitive configuration file: {}", path),
-                        risk_score: 80,
+                // Use the unified provider to check for sensitive files
+                if self.config_provider.is_sensitive_file(path) {
+                    // Determine criticality based on file content
+                    if path.contains("id_rsa")
+                        || path.contains("id_dsa")
+                        || path.contains("id_ecdsa")
+                        || path.contains("id_ed25519")
+                        || path.ends_with(".pem")
+                        || path.ends_with(".key")
+                    {
+                        SecurityClassification {
+                            severity: SeverityLevel::Critical,
+                            category: "Critical Secret File Access".to_string(),
+                            description: format!("Access to cryptographic key file: {}", path),
+                            risk_score: 95,
+                        }
+                    } else {
+                        SecurityClassification {
+                            severity: SeverityLevel::High,
+                            category: "Secret File Access".to_string(),
+                            description: format!(
+                                "Access to sensitive configuration file: {}",
+                                path
+                            ),
+                            risk_score: 80,
+                        }
                     }
                 }
                 // System files
@@ -195,8 +195,8 @@ impl<T: SecurityConfigProvider> ConfigurableSecurityClassifier<T> {
         let target_process = event.target_command_as_str();
         let syscall = event.syscall_type_as_str();
 
-        // Check if this is debugging legitimate processes
-        if target_process == "gdb" || target_process == "lldb" || target_process.contains("debug") {
+        // Use the unified provider to check if process should be monitored
+        if !self.config_provider.should_monitor_process(target_process) {
             SecurityClassification {
                 severity: SeverityLevel::Low,
                 category: "Development Memory Access".to_string(),
@@ -231,7 +231,7 @@ impl<T: SecurityConfigProvider> ConfigurableSecurityClassifier<T> {
     }
 }
 
-impl<T: SecurityConfigProvider> SecurityEventClassifier for ConfigurableSecurityClassifier<T> {
+impl<T: ConfigurationProvider> SecurityEventClassifier for ConfigurableSecurityClassifier<T> {
     fn classify(&self, event: &SecurityEvent) -> SecurityClassification {
         match event {
             SecurityEvent::Network(e) => self.classify_network_event(e),
@@ -262,12 +262,13 @@ impl<T: SecurityConfigProvider> SecurityEventClassifier for ConfigurableSecurity
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::security_config::FileBasedConfigProvider;
+    use crate::configuration::{Configuration, OptimizedConfigurationProvider};
     use bee_trace_common::{NetworkEvent, ProcessMemoryEvent, SecretAccessEvent};
 
     #[test]
     fn should_classify_suspicious_network_port() {
-        let config_provider = FileBasedConfigProvider::new();
+        let config = Configuration::builder().build().unwrap();
+        let config_provider = OptimizedConfigurationProvider::new(config);
         let classifier =
             ConfigurableSecurityClassifier::new(config_provider, SeverityLevel::Medium);
 
@@ -282,7 +283,8 @@ mod tests {
 
     #[test]
     fn should_classify_safe_network_port() {
-        let config_provider = FileBasedConfigProvider::new();
+        let config = Configuration::builder().build().unwrap();
+        let config_provider = OptimizedConfigurationProvider::new(config);
         let classifier =
             ConfigurableSecurityClassifier::new(config_provider, SeverityLevel::Medium);
 
@@ -296,7 +298,8 @@ mod tests {
 
     #[test]
     fn should_classify_critical_secret_file() {
-        let config_provider = FileBasedConfigProvider::new();
+        let config = Configuration::builder().build().unwrap();
+        let config_provider = OptimizedConfigurationProvider::new(config);
         let classifier =
             ConfigurableSecurityClassifier::new(config_provider, SeverityLevel::Medium);
 
@@ -311,7 +314,8 @@ mod tests {
 
     #[test]
     fn should_classify_memory_access_to_system_process() {
-        let config_provider = FileBasedConfigProvider::new();
+        let config = Configuration::builder().build().unwrap();
+        let config_provider = OptimizedConfigurationProvider::new(config);
         let classifier =
             ConfigurableSecurityClassifier::new(config_provider, SeverityLevel::Medium);
 
@@ -328,7 +332,8 @@ mod tests {
 
     #[test]
     fn should_determine_alert_threshold() {
-        let config_provider = FileBasedConfigProvider::new();
+        let config = Configuration::builder().build().unwrap();
+        let config_provider = OptimizedConfigurationProvider::new(config);
         let high_threshold_classifier =
             ConfigurableSecurityClassifier::new(config_provider, SeverityLevel::High);
 
