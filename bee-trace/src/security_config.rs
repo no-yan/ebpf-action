@@ -1,8 +1,17 @@
+//! Legacy security configuration module - DEPRECATED
+//! Use bee_trace::configuration instead
+
+#![allow(deprecated)]
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 
+#[deprecated(
+    since = "0.2.0",
+    note = "Use `bee_trace::configuration::SecurityConfig` instead. This legacy security configuration system will be removed in v0.3.0. See docs/05-technical-details/configuration-migration.md for migration guide."
+)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityConfig {
     pub file_monitoring: FileMonitoringConfig,
@@ -10,6 +19,10 @@ pub struct SecurityConfig {
     pub memory_monitoring: MemoryMonitoringConfig,
 }
 
+#[deprecated(
+    since = "0.2.0",
+    note = "Use `bee_trace::configuration::FileMonitoringConfig` instead. This legacy configuration system will be removed in v0.3.0."
+)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileMonitoringConfig {
     pub sensitive_files: Vec<String>,
@@ -18,6 +31,10 @@ pub struct FileMonitoringConfig {
     pub exclude_patterns: Vec<String>,
 }
 
+#[deprecated(
+    since = "0.2.0",
+    note = "Use `bee_trace::configuration::NetworkMonitoringConfig` instead. This legacy configuration system will be removed in v0.3.0."
+)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkMonitoringConfig {
     pub suspicious_ports: Vec<u16>,
@@ -26,6 +43,10 @@ pub struct NetworkMonitoringConfig {
     pub allowed_ips: Vec<String>,
 }
 
+#[deprecated(
+    since = "0.2.0",
+    note = "Use `bee_trace::configuration::MemoryMonitoringConfig` instead. This legacy configuration system will be removed in v0.3.0."
+)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemoryMonitoringConfig {
     pub monitor_ptrace: bool,
@@ -84,6 +105,10 @@ impl Default for SecurityConfig {
     }
 }
 
+#[deprecated(
+    since = "0.2.0",
+    note = "Use `bee_trace::configuration::ConfigurationProvider` instead. This legacy trait will be removed in v0.3.0. The new trait provides unified configuration access with optimized HashSet lookups."
+)]
 pub trait SecurityConfigProvider {
     fn get_config(&self) -> &SecurityConfig;
     fn is_sensitive_file(&self, filename: &str) -> bool;
@@ -91,6 +116,10 @@ pub trait SecurityConfigProvider {
     fn should_monitor_process(&self, process_name: &str) -> bool;
 }
 
+#[deprecated(
+    since = "0.2.0",
+    note = "Use `bee_trace::configuration::OptimizedConfigurationProvider` instead. This legacy provider will be removed in v0.3.0. The new provider offers better performance and unified configuration access."
+)]
 pub struct FileBasedConfigProvider {
     config: SecurityConfig,
     sensitive_files_set: HashSet<String>,

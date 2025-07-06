@@ -2,6 +2,7 @@ use std::{path::PathBuf, time::Duration};
 
 use clap::{Arg, ArgMatches, Command};
 
+#[allow(deprecated)] // Using legacy config during transition period
 use crate::config::Config;
 
 pub struct CliApp {
@@ -294,6 +295,7 @@ impl CliConfig {
         })
     }
 
+    #[allow(deprecated)] // Using legacy config during transition period
     pub fn merge_with_config_file(&mut self, config: &Config) -> anyhow::Result<()> {
         if self.duration.is_none() && config.monitoring.default_duration_seconds.is_some() {
             self.duration = config

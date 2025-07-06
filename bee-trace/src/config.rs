@@ -1,7 +1,16 @@
+//! Legacy configuration module - DEPRECATED
+//! Use bee_trace::configuration instead
+
+#![allow(deprecated)]
+
 use std::{fs, net::IpAddr, path::Path};
 
 use serde::{Deserialize, Serialize};
 
+#[deprecated(
+    since = "0.2.0",
+    note = "Use `bee_trace::configuration::Configuration` instead. This legacy configuration system will be removed in v0.3.0. See docs/05-technical-details/configuration-migration.md for migration guide."
+)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     #[serde(default)]
@@ -12,6 +21,10 @@ pub struct Config {
     pub security: SecurityConfig,
 }
 
+#[deprecated(
+    since = "0.2.0",
+    note = "Use `bee_trace::configuration::MonitoringConfig` instead. This legacy configuration system will be removed in v0.3.0."
+)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MonitoringConfig {
     pub default_duration_seconds: Option<u64>,
@@ -22,6 +35,10 @@ pub struct MonitoringConfig {
     pub cpu_limit: Option<u8>,
 }
 
+#[deprecated(
+    since = "0.2.0",
+    note = "Use `bee_trace::configuration::OutputConfig` instead. This legacy configuration system will be removed in v0.3.0."
+)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct OutputConfig {
     pub verbose: Option<bool>,
@@ -29,6 +46,10 @@ pub struct OutputConfig {
     pub no_header: Option<bool>,
 }
 
+#[deprecated(
+    since = "0.2.0",
+    note = "Use `bee_trace::configuration::SecurityConfig` instead. This legacy configuration system will be removed in v0.3.0."
+)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SecurityConfig {
     #[serde(default)]
@@ -37,12 +58,20 @@ pub struct SecurityConfig {
     pub files: FileConfig,
 }
 
+#[deprecated(
+    since = "0.2.0",
+    note = "Use `bee_trace::configuration::NetworkMonitoringConfig` instead. This legacy configuration system will be removed in v0.3.0."
+)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NetworkConfig {
     #[serde(default)]
     pub block: Vec<String>,
 }
 
+#[deprecated(
+    since = "0.2.0",
+    note = "Use `bee_trace::configuration::FileMonitoringConfig` instead. This legacy configuration system will be removed in v0.3.0."
+)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct FileConfig {
     #[serde(default)]
