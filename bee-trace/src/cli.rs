@@ -2,8 +2,7 @@ use std::{path::PathBuf, time::Duration};
 
 use clap::{Arg, ArgMatches, Command};
 
-#[allow(deprecated)] // Using legacy config during transition period
-use crate::config::Config;
+use crate::configuration::Configuration;
 
 pub struct CliApp {
     app: Command,
@@ -295,38 +294,52 @@ impl CliConfig {
         })
     }
 
-    #[allow(deprecated)] // Using legacy config during transition period
-    pub fn merge_with_config_file(&mut self, config: &Config) -> anyhow::Result<()> {
-        if self.duration.is_none() && config.monitoring.default_duration_seconds.is_some() {
-            self.duration = config
-                .monitoring
-                .default_duration_seconds
-                .map(Duration::from_secs);
+    pub fn merge_with_configuration(&mut self, config: &Configuration) -> anyhow::Result<()> {
+        // Merge monitoring settings
+        if self.duration.is_none() {
+            self.duration = config.monitoring.duration;
         }
 
-        if !self.verbose && config.output.verbose.unwrap_or(false) {
-            self.verbose = true;
+        if !self.verbose {
+            self.verbose = config.output.verbose;
         }
 
-        if !self.security_mode && config.monitoring.security_mode.unwrap_or(false) {
-            self.security_mode = true;
+        if !self.security_mode {
+            self.security_mode = config.monitoring.security_mode;
         }
 
         if self.filter_severity.is_none() {
-            self.filter_severity = config.monitoring.min_severity.clone();
+            self.filter_severity = config.output.filter_severity.as_ref().map(|s| match s {
+                crate::configuration::SeverityLevel::Low => "low".to_string(),
+                crate::configuration::SeverityLevel::Medium => "medium".to_string(),
+                crate::configuration::SeverityLevel::High => "high".to_string(),
+                crate::configuration::SeverityLevel::Critical => "critical".to_string(),
+            });
         }
 
         if self.exclude_pids.is_empty() {
-            self.exclude_pids = config.monitoring.exclude_pids.clone().unwrap_or_default();
+            self.exclude_pids = config.monitoring.exclude_pids.clone();
         }
 
         if self.include_pids.is_empty() {
-            self.include_pids = config.monitoring.include_pids.clone().unwrap_or_default();
+            self.include_pids = config.monitoring.include_pids.clone();
         }
 
         if self.cpu_limit.is_none() {
             self.cpu_limit = config.monitoring.cpu_limit;
         }
+
+        // Merge output settings
+        if !self.no_header {
+            self.no_header = config.output.no_header;
+        }
+
+        if self.output_file.is_none() {
+            self.output_file = config.output.output_file.clone();
+        }
+
+        // Note: output_format and timestamp_format use string representation
+        // and may need conversion from the enum types in Configuration
 
         Ok(())
     }
