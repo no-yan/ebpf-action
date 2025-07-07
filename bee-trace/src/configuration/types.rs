@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MonitoringConfig {
+pub struct Monitoring {
     pub probe_types: Vec<ProbeType>,
     pub duration: Option<Duration>,
     pub command_filter: Option<String>,
@@ -19,7 +19,7 @@ pub struct MonitoringConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct OutputConfig {
+pub struct Output {
     pub verbose: bool,
     pub quiet: bool,
     pub no_header: bool,
@@ -30,17 +30,17 @@ pub struct OutputConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SecurityConfig {
-    pub file_monitoring: FileMonitoringConfig,
-    pub network_monitoring: NetworkMonitoringConfig,
-    pub memory_monitoring: MemoryMonitoringConfig,
+pub struct Security {
+    pub file_monitoring: FileMonitoring,
+    pub network_monitoring: NetworkMonitoring,
+    pub memory_monitoring: MemoryMonitoring,
     pub blocked_domains: Vec<String>,
     pub watch_files: Vec<String>,
     pub secret_env_patterns: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FileMonitoringConfig {
+pub struct FileMonitoring {
     pub sensitive_files: Vec<String>,
     pub sensitive_extensions: Vec<String>,
     pub watch_directories: Vec<String>,
@@ -48,7 +48,7 @@ pub struct FileMonitoringConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct NetworkMonitoringConfig {
+pub struct NetworkMonitoring {
     pub suspicious_ports: Vec<u16>,
     pub safe_ports: Vec<u16>,
     pub blocked_ips: Vec<String>,
@@ -56,14 +56,14 @@ pub struct NetworkMonitoringConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct MemoryMonitoringConfig {
+pub struct MemoryMonitoring {
     pub monitor_ptrace: bool,
     pub monitor_process_vm: bool,
     pub excluded_processes: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct RuntimeConfig {
+pub struct Runtime {
     pub config_file: Option<PathBuf>,
     pub working_directory: PathBuf,
 }
@@ -90,7 +90,7 @@ pub enum SeverityLevel {
     Critical,
 }
 
-impl Default for MonitoringConfig {
+impl Default for Monitoring {
     fn default() -> Self {
         Self {
             probe_types: vec![ProbeType::FileMonitor],
@@ -104,7 +104,7 @@ impl Default for MonitoringConfig {
     }
 }
 
-impl Default for OutputConfig {
+impl Default for Output {
     fn default() -> Self {
         Self {
             verbose: false,
@@ -118,10 +118,10 @@ impl Default for OutputConfig {
     }
 }
 
-impl Default for SecurityConfig {
+impl Default for Security {
     fn default() -> Self {
         Self {
-            file_monitoring: FileMonitoringConfig {
+            file_monitoring: FileMonitoring {
                 sensitive_files: vec![
                     "credentials.json".to_string(),
                     "id_rsa".to_string(),
@@ -150,13 +150,13 @@ impl Default for SecurityConfig {
                 ],
                 exclude_patterns: vec!["/tmp".to_string(), "/var/log".to_string()],
             },
-            network_monitoring: NetworkMonitoringConfig {
+            network_monitoring: NetworkMonitoring {
                 suspicious_ports: vec![22, 23, 3389, 5900, 6000],
                 safe_ports: vec![80, 443, 53, 993, 995, 587, 465],
                 blocked_ips: vec![],
                 allowed_ips: vec!["127.0.0.1".to_string(), "::1".to_string()],
             },
-            memory_monitoring: MemoryMonitoringConfig {
+            memory_monitoring: MemoryMonitoring {
                 monitor_ptrace: true,
                 monitor_process_vm: true,
                 excluded_processes: vec![
@@ -172,7 +172,7 @@ impl Default for SecurityConfig {
     }
 }
 
-impl Default for RuntimeConfig {
+impl Default for Runtime {
     fn default() -> Self {
         Self {
             config_file: None,
@@ -196,7 +196,7 @@ pub trait ConfigurationProvider {
     fn should_monitor_process(&self, process_name: &str) -> bool;
 
     /// Get access to the underlying security configuration
-    fn get_security_config(&self) -> &SecurityConfig;
+    fn get_security_config(&self) -> &Security;
 
     /// Check if an IP address is blocked
     fn is_ip_blocked(&self, ip: &str) -> bool;

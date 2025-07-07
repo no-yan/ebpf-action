@@ -3,7 +3,7 @@
 //! Provides a builder pattern for constructing Configuration instances
 //! from multiple sources with proper validation.
 
-use super::{Configuration, MonitoringConfig, OutputConfig, RuntimeConfig, SecurityConfig};
+use super::{Configuration, Monitoring, Output, Runtime, Security};
 use crate::errors::{BeeTraceError, ProbeType};
 use std::fs;
 use std::path::Path;
@@ -18,19 +18,19 @@ use std::time::Duration;
 /// - Defaults
 #[derive(Debug)]
 pub struct ConfigurationBuilder {
-    monitoring: MonitoringConfig,
-    output: OutputConfig,
-    security: SecurityConfig,
-    runtime: RuntimeConfig,
+    monitoring: Monitoring,
+    output: Output,
+    security: Security,
+    runtime: Runtime,
 }
 
 impl ConfigurationBuilder {
     pub fn new() -> Self {
         Self {
-            monitoring: MonitoringConfig::default(),
-            output: OutputConfig::default(),
-            security: SecurityConfig::default(),
-            runtime: RuntimeConfig::default(),
+            monitoring: Monitoring::default(),
+            output: Output::default(),
+            security: Security::default(),
+            runtime: Runtime::default(),
         }
     }
 
@@ -137,7 +137,7 @@ impl ConfigurationBuilder {
 
     /// Configure from YAML string
     pub fn from_yaml_str(mut self, yaml: &str) -> Result<Self, BeeTraceError> {
-        let config: SecurityConfig =
+        let config: Security =
             serde_yaml::from_str(yaml).map_err(|e| BeeTraceError::ConfigError {
                 message: format!("Failed to parse YAML config: {}", e),
             })?;
@@ -149,7 +149,7 @@ impl ConfigurationBuilder {
 
     /// Configure from JSON string
     pub fn from_json_str(mut self, json: &str) -> Result<Self, BeeTraceError> {
-        let config: SecurityConfig =
+        let config: Security =
             serde_json::from_str(json).map_err(|e| BeeTraceError::ConfigError {
                 message: format!("Failed to parse JSON config: {}", e),
             })?;

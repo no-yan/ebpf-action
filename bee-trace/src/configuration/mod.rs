@@ -21,10 +21,10 @@ use std::collections::HashSet;
 /// - Clear validation and error handling
 #[derive(Debug, Clone, PartialEq)]
 pub struct Configuration {
-    pub monitoring: MonitoringConfig,
-    pub output: OutputConfig,
-    pub security: SecurityConfig,
-    pub runtime: RuntimeConfig,
+    pub monitoring: Monitoring,
+    pub output: Output,
+    pub security: Security,
+    pub runtime: Runtime,
 }
 
 impl Configuration {
@@ -201,7 +201,7 @@ impl ConfigurationProvider for OptimizedConfigurationProvider {
         !self.excluded_processes_set.contains(process_name)
     }
 
-    fn get_security_config(&self) -> &SecurityConfig {
+    fn get_security_config(&self) -> &Security {
         &self.config.security
     }
 
@@ -258,7 +258,7 @@ impl ConfigurationProvider for Configuration {
             .contains(&process_name.to_string())
     }
 
-    fn get_security_config(&self) -> &SecurityConfig {
+    fn get_security_config(&self) -> &Security {
         &self.security
     }
 
