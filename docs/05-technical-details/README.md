@@ -147,7 +147,7 @@ just setup
 ## 🎨 **Code Quality Standards**
 
 ### **All Tasks Must Maintain**
-- **Test Coverage**: No reduction in existing 179+ test coverage
+- **Test Coverage**: No reduction in existing comprehensive test coverage
 - **Performance**: No regressions without explicit justification
 - **Security**: Enhanced security posture, never reduced
 - **Documentation**: All public APIs documented
@@ -163,7 +163,7 @@ just setup
 
 ### **Quantitative Goals**
 - **Code Quality**: Zero new compiler warnings
-- **Test Coverage**: Maintain or improve current coverage
+- **Test Coverage**: Maintain or improve current comprehensive coverage
 - **Performance**: Specific metrics defined per task
 - **Documentation**: 100% public API documentation coverage
 

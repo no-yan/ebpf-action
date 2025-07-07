@@ -210,7 +210,7 @@ just run-file-monitor --duration 5
 ## Success Metrics
 
 - Zero new compiler warnings
-- All 179+ tests continue passing
+- All existing tests continue passing
 - File monitoring catches more sensitive files
 - Debug output is more informative
 - Error messages are more helpful

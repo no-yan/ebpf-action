@@ -4,7 +4,7 @@
 
 This document outlines the functional requirements for bee-trace, an eBPF-based security monitoring tool designed to detect and report potential supply chain attacks. The tool has been successfully implemented with a modular, testable architecture following TDD principles.
 
-**Implementation Status**: ✅ Core features implemented with 112+ tests passing and modular architecture.
+**Implementation Status**: ✅ Core features implemented with comprehensive test coverage and modular architecture.
 
 ## 2. Goal
 
@@ -202,7 +202,7 @@ Configuration is tested in `tests/config_tests.rs` with comprehensive validation
 ### 6.3. Architecture Benefits Achieved ✅
 
 1. **Modular Design**: Clean separation between configuration, probe management, and event processing
-2. **Testable Architecture**: 112+ tests with comprehensive mock implementations
+2. **Testable Architecture**: Comprehensive test suite with extensive mock implementations
 3. **Type Safety**: Unified error handling with detailed context
 4. **Maintainability**: TDD-driven development with clear interfaces
 5. **Extensibility**: Easy addition of new probe types through ProbeManager trait

@@ -1,6 +1,6 @@
 # Testing Strategy for bee-trace
 
-This document outlines the comprehensive testing approach for the bee-trace eBPF security monitoring project, following t-wada's testing principles and TDD methodology. The project includes 112+ tests covering the new loose coupling, high cohesion architecture.
+This document outlines the comprehensive testing approach for the bee-trace eBPF security monitoring project, following t-wada's testing principles and TDD methodology. The project includes extensive tests covering the new loose coupling, high cohesion architecture.
 
 ## Testing Philosophy
 
@@ -55,7 +55,7 @@ bee-trace/
 | bee-trace (probe_manager) | 9 tests | ProbeManager trait implementation |
 | bee-trace (test_helpers) | 4 tests | Test utilities and builders |
 | bee-trace-ebpf | 0 tests | eBPF structure validation |
-| **Total** | **127 tests** | **Comprehensive coverage with new architecture** |
+| **Total** | **Comprehensive** | **Extensive coverage with new architecture** |
 
 ## Test Categories
 
@@ -458,7 +458,7 @@ assert_eq!(processor.get_unique_event_types().len(), 2);
 
 ### Complete Test Suite
 ```bash
-# Run all 127+ tests
+# Run all tests
 just test
 # or
 cargo test

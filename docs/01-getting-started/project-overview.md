@@ -15,7 +15,7 @@ bee-trace is an eBPF-based security monitoring tool designed to detect and repor
 ### 🏗️ Modern Architecture
 - **Loose Coupling**: Minimal dependencies between components
 - **High Cohesion**: Single responsibility per module
-- **Test-Driven Development**: 112+ tests with comprehensive coverage
+- **Test-Driven Development**: Comprehensive test coverage
 - **Deep Modules**: Complex eBPF operations hidden behind simple interfaces
 
 ### ⚡ Performance
@@ -151,7 +151,7 @@ Following "A Philosophy of Software Design" principles:
 ### Implementation Progress
 - ✅ **Core Features**: File, network, and memory monitoring implemented
 - ✅ **Architecture**: Modular design with loose coupling achieved
-- ✅ **Testing**: 112+ tests covering all major components
+- ✅ **Testing**: Comprehensive test coverage across all major components
 - ✅ **Documentation**: Comprehensive guides and references
 
 ### Active Development
