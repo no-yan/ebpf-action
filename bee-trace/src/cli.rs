@@ -87,46 +87,11 @@ impl CliApp {
                     .default_value("json")
             )
             .arg(
-                Arg::new("quiet")
-                    .short('q')
-                    .long("quiet")
-                    .help("Suppress real-time output (useful when saving to file)")
-                    .action(clap::ArgAction::SetTrue)
-                    .conflicts_with("verbose")
-            )
-            .arg(
                 Arg::new("filter-severity")
                     .long("filter-severity")
                     .value_name("LEVEL")
                     .help("Only show events of specified severity or higher")
                     .value_parser(["low", "medium", "high", "critical"])
-            )
-            .arg(
-                Arg::new("exclude-pids")
-                    .long("exclude-pids")
-                    .value_name("PID_LIST")
-                    .help("Comma-separated list of PIDs to exclude from monitoring")
-                    .long_help("Exclude specific process IDs from monitoring. Useful for filtering out noisy processes.")
-                    .value_delimiter(',')
-                    .value_parser(clap::value_parser!(u32))
-            )
-            .arg(
-                Arg::new("include-pids")
-                    .long("include-pids")
-                    .value_name("PID_LIST")
-                    .help("Comma-separated list of PIDs to exclusively monitor")
-                    .long_help("Only monitor specified process IDs. When set, all other processes are ignored.")
-                    .value_delimiter(',')
-                    .value_parser(clap::value_parser!(u32))
-                    .conflicts_with("exclude-pids")
-            )
-            .arg(
-                Arg::new("cpu-limit")
-                    .long("cpu-limit")
-                    .value_name("PERCENT")
-                    .help("CPU usage limit (1-100)")
-                    .long_help("Throttle monitoring to stay within specified CPU percentage. May reduce event capture rate.")
-                    .value_parser(clap::value_parser!(u8).range(1..=100))
             )
             .arg(
                 Arg::new("no-header")
@@ -226,11 +191,7 @@ pub struct CliConfig {
     pub config_file: Option<PathBuf>,
     pub output_file: Option<PathBuf>,
     pub output_format: String,
-    pub quiet: bool,
     pub filter_severity: Option<String>,
-    pub exclude_pids: Vec<u32>,
-    pub include_pids: Vec<u32>,
-    pub cpu_limit: Option<u8>,
     pub no_header: bool,
     pub timestamp_format: String,
 }
@@ -247,7 +208,6 @@ impl CliConfig {
 
         let verbose = matches.get_flag("verbose");
         let security_mode = matches.get_flag("security-mode");
-        let quiet = matches.get_flag("quiet");
         let no_header = matches.get_flag("no-header");
 
         let config_file = matches.get_one::<PathBuf>("config").cloned();
@@ -257,18 +217,6 @@ impl CliConfig {
         let output_format = matches.get_one::<String>("format").unwrap().clone();
 
         let filter_severity = matches.get_one::<String>("filter-severity").cloned();
-
-        let exclude_pids = matches
-            .get_many::<u32>("exclude-pids")
-            .map(|values| values.copied().collect())
-            .unwrap_or_default();
-
-        let include_pids = matches
-            .get_many::<u32>("include-pids")
-            .map(|values| values.copied().collect())
-            .unwrap_or_default();
-
-        let cpu_limit = matches.get_one::<u8>("cpu-limit").copied();
 
         let timestamp_format = matches
             .get_one::<String>("timestamp-format")
@@ -284,11 +232,7 @@ impl CliConfig {
             config_file,
             output_file,
             output_format,
-            quiet,
             filter_severity,
-            exclude_pids,
-            include_pids,
-            cpu_limit,
             no_header,
             timestamp_format,
         })
@@ -308,37 +252,7 @@ impl CliConfig {
             self.security_mode = config.monitoring.security_mode;
         }
 
-        if self.filter_severity.is_none() {
-            self.filter_severity = config.output.filter_severity.as_ref().map(|s| match s {
-                crate::configuration::SeverityLevel::Low => "low".to_string(),
-                crate::configuration::SeverityLevel::Medium => "medium".to_string(),
-                crate::configuration::SeverityLevel::High => "high".to_string(),
-                crate::configuration::SeverityLevel::Critical => "critical".to_string(),
-            });
-        }
-
-        if self.exclude_pids.is_empty() {
-            self.exclude_pids = config.monitoring.exclude_pids.clone();
-        }
-
-        if self.include_pids.is_empty() {
-            self.include_pids = config.monitoring.include_pids.clone();
-        }
-
-        if self.cpu_limit.is_none() {
-            self.cpu_limit = config.monitoring.cpu_limit;
-        }
-
-        // Merge output settings
-        if !self.no_header {
-            self.no_header = config.output.no_header;
-        }
-
-        if self.output_file.is_none() {
-            self.output_file = config.output.output_file.clone();
-        }
-
-        // Note: output_format and timestamp_format use string representation
+        // Merge output settings - removed unused fields (no_header, output_file, format, timestamp_format)
         // and may need conversion from the enum types in Configuration
 
         Ok(())
@@ -356,12 +270,6 @@ impl CliConfig {
             if !valid_severities.contains(&severity.as_str()) {
                 return Err(anyhow::anyhow!("Invalid severity filter: {}", severity));
             }
-        }
-
-        if !self.exclude_pids.is_empty() && !self.include_pids.is_empty() {
-            return Err(anyhow::anyhow!(
-                "Cannot specify both include-pids and exclude-pids"
-            ));
         }
 
         let valid_formats = ["json", "markdown", "csv"];
@@ -383,18 +291,6 @@ impl CliConfig {
         }
 
         Ok(())
-    }
-
-    pub fn should_filter_pid(&self, pid: u32) -> bool {
-        if !self.include_pids.is_empty() {
-            return self.include_pids.contains(&pid);
-        }
-
-        if !self.exclude_pids.is_empty() {
-            return !self.exclude_pids.contains(&pid);
-        }
-
-        true
     }
 
     pub fn should_show_severity(&self, severity: &str) -> bool {
@@ -480,8 +376,6 @@ mod tests {
                 "nginx",
                 "--verbose",
                 "--security-mode",
-                "--exclude-pids",
-                "1,2,3",
             ])
             .unwrap();
 
@@ -491,7 +385,6 @@ mod tests {
         assert_eq!(config.command_filter, Some("nginx".to_string()));
         assert!(config.verbose);
         assert!(config.security_mode);
-        assert_eq!(config.exclude_pids, vec![1, 2, 3]);
     }
 
     #[test]
@@ -505,11 +398,7 @@ mod tests {
             config_file: None,
             output_file: None,
             output_format: "json".to_string(),
-            quiet: false,
             filter_severity: None,
-            exclude_pids: vec![],
-            include_pids: vec![],
-            cpu_limit: None,
             no_header: false,
             timestamp_format: "iso8601".to_string(),
         };
@@ -528,46 +417,12 @@ mod tests {
             config_file: None,
             output_file: None,
             output_format: "json".to_string(),
-            quiet: false,
             filter_severity: Some("invalid".to_string()),
-            exclude_pids: vec![],
-            include_pids: vec![],
-            cpu_limit: None,
             no_header: false,
             timestamp_format: "iso8601".to_string(),
         };
 
         assert!(config.validate().is_err());
-    }
-
-    #[test]
-    fn should_filter_pids_correctly() {
-        let mut config = CliConfig {
-            probe_type: "file_monitor".to_string(),
-            duration: None,
-            command_filter: None,
-            verbose: false,
-            security_mode: false,
-            config_file: None,
-            output_file: None,
-            output_format: "json".to_string(),
-            quiet: false,
-            filter_severity: None,
-            exclude_pids: vec![1, 2, 3],
-            include_pids: vec![],
-            cpu_limit: None,
-            no_header: false,
-            timestamp_format: "iso8601".to_string(),
-        };
-
-        assert!(!config.should_filter_pid(1));
-        assert!(config.should_filter_pid(4));
-
-        config.exclude_pids.clear();
-        config.include_pids = vec![1, 2, 3];
-
-        assert!(config.should_filter_pid(1));
-        assert!(!config.should_filter_pid(4));
     }
 
     #[test]
@@ -581,11 +436,7 @@ mod tests {
             config_file: None,
             output_file: None,
             output_format: "json".to_string(),
-            quiet: false,
             filter_severity: Some("medium".to_string()),
-            exclude_pids: vec![],
-            include_pids: vec![],
-            cpu_limit: None,
             no_header: false,
             timestamp_format: "iso8601".to_string(),
         };

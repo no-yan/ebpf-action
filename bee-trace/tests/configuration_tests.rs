@@ -3,7 +3,6 @@
 //! These tests define the expected behavior of the new configuration
 //! system before implementation exists (Red phase of TDD).
 
-use bee_trace::configuration::types::*;
 use bee_trace::configuration::Configuration;
 use bee_trace::errors::{BeeTraceError, ProbeType};
 use std::time::Duration;
@@ -21,7 +20,7 @@ mod configuration_builder_tests {
         assert_eq!(config.monitoring.duration, None);
         assert!(!config.monitoring.security_mode);
         assert!(!config.output.verbose);
-        assert_eq!(config.output.format, OutputFormat::Json);
+        // Output format removed - always JSON
         assert!(config.security.network_monitoring.blocked_ips.is_empty());
     }
 
@@ -124,218 +123,7 @@ mod configuration_validation_tests {
     }
 }
 
-mod configuration_file_loading_tests {
-    use super::*;
-    use std::io::Write;
-    use tempfile::NamedTempFile;
-
-    #[test]
-    fn should_load_yaml_configuration_from_file() {
-        let yaml_content = r#"
-file_monitoring:
-  sensitive_files:
-    - "custom.key"
-    - "secret.json"
-  sensitive_extensions:
-    - ".custom"
-  watch_directories: []
-  exclude_patterns: []
-network_monitoring:
-  suspicious_ports:
-    - 9999
-  safe_ports: []
-  blocked_ips:
-    - "192.168.1.1"
-  allowed_ips: []
-memory_monitoring:
-  monitor_ptrace: false
-  monitor_process_vm: true
-  excluded_processes:
-    - "custom_process"
-blocked_domains: []
-watch_files: []
-secret_env_patterns: []
-"#;
-
-        let mut temp_file = NamedTempFile::new().unwrap();
-        write!(temp_file, "{}", yaml_content).unwrap();
-
-        let config = Configuration::builder()
-            .from_config_file(temp_file.path())
-            .unwrap()
-            .build()
-            .unwrap();
-
-        assert_eq!(config.security.file_monitoring.sensitive_files.len(), 2);
-        assert!(config
-            .security
-            .file_monitoring
-            .sensitive_files
-            .contains(&"custom.key".to_string()));
-        assert!(config
-            .security
-            .network_monitoring
-            .suspicious_ports
-            .contains(&9999));
-        assert!(!config.security.memory_monitoring.monitor_ptrace);
-    }
-
-    #[test]
-    fn should_load_json_configuration_from_file() {
-        let json_content = r#"
-{
-  "file_monitoring": {
-    "sensitive_files": ["test.key"],
-    "sensitive_extensions": [".test"],
-    "watch_directories": ["/test"],
-    "exclude_patterns": []
-  },
-  "network_monitoring": {
-    "suspicious_ports": [8080],
-    "safe_ports": [80],
-    "blocked_ips": [],
-    "allowed_ips": ["127.0.0.1"]
-  },
-  "memory_monitoring": {
-    "monitor_ptrace": true,
-    "monitor_process_vm": false,
-    "excluded_processes": []
-  },
-  "blocked_domains": [],
-  "watch_files": [],
-  "secret_env_patterns": []
-}
-"#;
-
-        let mut temp_file = NamedTempFile::with_suffix(".json").unwrap();
-        write!(temp_file, "{}", json_content).unwrap();
-
-        let config = Configuration::builder()
-            .from_config_file(temp_file.path())
-            .unwrap()
-            .build()
-            .unwrap();
-
-        assert_eq!(config.security.file_monitoring.sensitive_files.len(), 1);
-        assert!(config
-            .security
-            .file_monitoring
-            .sensitive_files
-            .contains(&"test.key".to_string()));
-        assert!(config
-            .security
-            .network_monitoring
-            .suspicious_ports
-            .contains(&8080));
-        assert!(!config.security.memory_monitoring.monitor_process_vm);
-    }
-
-    #[test]
-    fn should_handle_invalid_yaml_config() {
-        let invalid_yaml = "invalid: yaml: content: [";
-
-        let mut temp_file = NamedTempFile::new().unwrap();
-        write!(temp_file, "{}", invalid_yaml).unwrap();
-
-        let result = Configuration::builder().from_config_file(temp_file.path());
-
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            BeeTraceError::ConfigError { message } => {
-                assert!(message.contains("Failed to parse YAML config"));
-            }
-            _ => panic!("Expected ConfigError"),
-        }
-    }
-
-    #[test]
-    fn should_handle_missing_config_file() {
-        let result = Configuration::builder().from_config_file("/nonexistent/path/config.yaml");
-
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            BeeTraceError::ConfigError { message } => {
-                assert!(message.contains("Failed to read config file"));
-            }
-            _ => panic!("Expected ConfigError"),
-        }
-    }
-
-    #[test]
-    fn should_parse_yaml_from_string() {
-        let yaml_content = r#"
-file_monitoring:
-  sensitive_files: ["string.key"]
-  sensitive_extensions: []
-  watch_directories: []
-  exclude_patterns: []
-network_monitoring:
-  suspicious_ports: []
-  safe_ports: []
-  blocked_ips: []
-  allowed_ips: []
-memory_monitoring:
-  monitor_ptrace: true
-  monitor_process_vm: true
-  excluded_processes: []
-blocked_domains: []
-watch_files: []
-secret_env_patterns: []
-"#;
-
-        let config = Configuration::builder()
-            .from_yaml_str(yaml_content)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        assert!(config
-            .security
-            .file_monitoring
-            .sensitive_files
-            .contains(&"string.key".to_string()));
-    }
-
-    #[test]
-    fn should_parse_json_from_string() {
-        let json_content = r#"
-{
-  "file_monitoring": {
-    "sensitive_files": ["json.key"],
-    "sensitive_extensions": [],
-    "watch_directories": [],
-    "exclude_patterns": []
-  },
-  "network_monitoring": {
-    "suspicious_ports": [],
-    "safe_ports": [],
-    "blocked_ips": [],
-    "allowed_ips": []
-  },
-  "memory_monitoring": {
-    "monitor_ptrace": true,
-    "monitor_process_vm": true,
-    "excluded_processes": []
-  },
-  "blocked_domains": [],
-  "watch_files": [],
-  "secret_env_patterns": []
-}
-"#;
-
-        let config = Configuration::builder()
-            .from_json_str(json_content)
-            .unwrap()
-            .build()
-            .unwrap();
-
-        assert!(config
-            .security
-            .file_monitoring
-            .sensitive_files
-            .contains(&"json.key".to_string()));
-    }
-}
+// File configuration tests removed as YAGNI - functionality not used in production
 
 mod configuration_integration_tests {
     use super::*;
@@ -344,8 +132,6 @@ mod configuration_integration_tests {
     fn should_combine_multiple_configuration_sources() {
         let config = Configuration::builder()
             .from_cli_args(&["--probe-type", "all", "--verbose"])
-            .unwrap()
-            .from_environment()
             .unwrap()
             .build()
             .unwrap();
@@ -397,66 +183,43 @@ mod configuration_integration_tests {
 
 mod configuration_provider_tests {
     use super::*;
-    use bee_trace::configuration::{ConfigurationProvider, OptimizedConfigurationProvider};
-
     #[test]
-    fn should_detect_sensitive_files_via_provider() {
+    fn should_detect_sensitive_files_via_configuration() {
         let config = Configuration::builder().build().unwrap();
 
-        // Test direct implementation
+        // Test optimized implementation with internal caching
         assert!(config.is_sensitive_file("id_rsa"));
         assert!(config.is_sensitive_file("credentials.json"));
         assert!(config.is_sensitive_file("test.pem"));
         assert!(!config.is_sensitive_file("regular.txt"));
-
-        // Test optimized implementation
-        let optimized = OptimizedConfigurationProvider::new(config.clone());
-        assert!(optimized.is_sensitive_file("id_rsa"));
-        assert!(optimized.is_sensitive_file("credentials.json"));
-        assert!(optimized.is_sensitive_file("test.pem"));
-        assert!(!optimized.is_sensitive_file("regular.txt"));
     }
 
     #[test]
-    fn should_detect_suspicious_ports_via_provider() {
+    fn should_detect_suspicious_ports_via_configuration() {
         let config = Configuration::builder().build().unwrap();
 
-        // Test direct implementation
+        // Test optimized implementation with internal caching
         assert!(config.is_suspicious_port(22));
         assert!(config.is_suspicious_port(3389));
         assert!(!config.is_suspicious_port(80));
         assert!(!config.is_suspicious_port(443));
-
-        // Test optimized implementation
-        let optimized = OptimizedConfigurationProvider::new(config.clone());
-        assert!(optimized.is_suspicious_port(22));
-        assert!(optimized.is_suspicious_port(3389));
-        assert!(!optimized.is_suspicious_port(80));
-        assert!(!optimized.is_suspicious_port(443));
     }
 
     #[test]
-    fn should_handle_process_monitoring_via_provider() {
+    fn should_handle_process_monitoring_via_configuration() {
         let config = Configuration::builder().build().unwrap();
 
-        // Test direct implementation
+        // Test optimized implementation with internal caching
         assert!(!config.should_monitor_process("gdb"));
         assert!(!config.should_monitor_process("strace"));
         assert!(config.should_monitor_process("suspicious_process"));
-
-        // Test optimized implementation
-        let optimized = OptimizedConfigurationProvider::new(config.clone());
-        assert!(!optimized.should_monitor_process("gdb"));
-        assert!(!optimized.should_monitor_process("strace"));
-        assert!(optimized.should_monitor_process("suspicious_process"));
     }
 
     #[test]
     fn should_provide_security_config_access() {
         let config = Configuration::builder().build().unwrap();
-        let optimized = OptimizedConfigurationProvider::new(config.clone());
 
-        let security_config = optimized.security_config();
+        let security_config = config.security_config();
         assert!(!security_config.file_monitoring.sensitive_files.is_empty());
         assert!(!security_config
             .network_monitoring
@@ -468,11 +231,8 @@ mod configuration_provider_tests {
     #[test]
     fn should_handle_ip_and_domain_blocking() {
         let config = Configuration::builder().build().unwrap();
-        let optimized = OptimizedConfigurationProvider::new(config.clone());
 
         // Default config should not block any IPs or domains
-        assert!(!optimized.is_ip_blocked("192.168.1.1"));
-        assert!(!optimized.is_domain_blocked("example.com"));
         assert!(!config.is_ip_blocked("192.168.1.1"));
         assert!(!config.is_domain_blocked("example.com"));
     }

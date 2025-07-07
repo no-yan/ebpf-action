@@ -5,16 +5,12 @@
 
 use super::{Configuration, Monitoring, Output, Runtime, Security};
 use crate::errors::{BeeTraceError, ProbeType};
-use std::fs;
-use std::path::Path;
 use std::time::Duration;
 
 /// Builder for creating Configuration instances
 ///
-/// Supports fluent API and multiple sources:
+/// Simplified builder that supports:
 /// - CLI arguments
-/// - Configuration files  
-/// - Environment variables
 /// - Defaults
 #[derive(Debug)]
 pub struct ConfigurationBuilder {
@@ -114,57 +110,6 @@ impl ConfigurationBuilder {
         Ok(self)
     }
 
-    /// Configure from YAML or JSON configuration file
-    pub fn from_config_file<P: AsRef<Path>>(self, path: P) -> Result<Self, BeeTraceError> {
-        let path = path.as_ref();
-        let content = fs::read_to_string(path).map_err(|e| BeeTraceError::ConfigError {
-            message: format!("Failed to read config file {}: {}", path.display(), e),
-        })?;
-
-        // Auto-detect format by extension or content
-        let mut builder = if path.extension().and_then(|s| s.to_str()) == Some("json")
-            || content.trim_start().starts_with('{')
-        {
-            self.from_json_str(&content)?
-        } else {
-            self.from_yaml_str(&content)?
-        };
-
-        // Store the path for reference
-        builder.runtime.config_file = Some(path.to_path_buf());
-        Ok(builder)
-    }
-
-    /// Configure from YAML string
-    pub fn from_yaml_str(mut self, yaml: &str) -> Result<Self, BeeTraceError> {
-        let config: Security =
-            serde_yaml::from_str(yaml).map_err(|e| BeeTraceError::ConfigError {
-                message: format!("Failed to parse YAML config: {}", e),
-            })?;
-
-        // Merge the loaded config with existing config
-        self.security = config;
-        Ok(self)
-    }
-
-    /// Configure from JSON string
-    pub fn from_json_str(mut self, json: &str) -> Result<Self, BeeTraceError> {
-        let config: Security =
-            serde_json::from_str(json).map_err(|e| BeeTraceError::ConfigError {
-                message: format!("Failed to parse JSON config: {}", e),
-            })?;
-
-        // Merge the loaded config with existing config
-        self.security = config;
-        Ok(self)
-    }
-
-    /// Configure from environment variables
-    pub fn from_environment(self) -> Result<Self, BeeTraceError> {
-        // Environment variable support can be added here later
-        Ok(self)
-    }
-
     /// Build the final configuration
     pub fn build(self) -> Result<Configuration, BeeTraceError> {
         let config = Configuration {
@@ -172,6 +117,12 @@ impl ConfigurationBuilder {
             output: self.output,
             security: self.security,
             runtime: self.runtime,
+            cached_sensitive_files: Default::default(),
+            cached_sensitive_extensions: Default::default(),
+            cached_suspicious_ports: Default::default(),
+            cached_excluded_processes: Default::default(),
+            cached_blocked_ips: Default::default(),
+            cached_blocked_domains: Default::default(),
         };
 
         config.validate()?;
