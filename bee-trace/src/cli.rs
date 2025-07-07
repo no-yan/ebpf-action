@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 
 use crate::configuration::Configuration;
 
@@ -20,11 +20,11 @@ pub struct CliApp {
     pub args: CliArgs,
 }
 
-#[derive(Parser)]
+#[derive(Args)]
 pub struct CliArgs {
     /// Type of probe to attach
-    #[arg(short = 'p', long, value_enum, default_value = "file-monitor")]
     #[arg(help = "Specify which eBPF probe to attach")]
+    #[arg(short = 'p', long, value_enum, default_value = "file_monitor")]
     pub probe_type: ProbeType,
 
     /// Duration to run the tracer in seconds

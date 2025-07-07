@@ -53,46 +53,6 @@ impl ConfigurationBuilder {
         Ok(self)
     }
 
-    /// Configure from clap ArgMatches
-    pub fn from_arg_matches(mut self, matches: &clap::ArgMatches) -> Result<Self, BeeTraceError> {
-        // Extract probe type
-        if let Some(probe_type) = matches.get_one::<String>("probe-type") {
-            match probe_type.as_str() {
-                "file_monitor" => self.monitoring.probe_types = vec![ProbeType::FileMonitor],
-                "network_monitor" => self.monitoring.probe_types = vec![ProbeType::NetworkMonitor],
-                "memory_monitor" => self.monitoring.probe_types = vec![ProbeType::MemoryMonitor],
-                "all" => self.monitoring.probe_types = ProbeType::all(),
-                _ => {
-                    return Err(BeeTraceError::InvalidProbeType {
-                        probe_type: probe_type.clone(),
-                        valid_types: vec![
-                            "file_monitor".to_string(),
-                            "network_monitor".to_string(),
-                            "memory_monitor".to_string(),
-                            "all".to_string(),
-                        ],
-                    })
-                }
-            }
-        }
-
-        // Extract duration
-        if let Some(&duration_secs) = matches.get_one::<u64>("duration") {
-            self.monitoring.duration = Some(Duration::from_secs(duration_secs));
-        }
-
-        // Extract command filter
-        if let Some(command) = matches.get_one::<String>("command") {
-            self.monitoring.command_filter = Some(command.clone());
-        }
-
-        // Extract boolean flags
-        self.output.verbose = matches.get_flag("verbose");
-        self.monitoring.security_mode = matches.get_flag("security-mode");
-
-        Ok(self)
-    }
-
     /// Configure from CLI arguments (Vec<String> format for testing)
     pub fn from_cli_args(mut self, args: &[&str]) -> Result<Self, BeeTraceError> {
         let mut i = 0;

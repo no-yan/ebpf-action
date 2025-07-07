@@ -3,8 +3,7 @@ use std::time::Duration;
 use aya::{maps::PerfEventArray, util::online_cpus, Ebpf};
 use aya_log::EbpfLogger;
 use bee_trace::{
-    configuration::Configuration, ebpf_manager::EbpfApplication, Args, EventFormatter,
-    TableFormatter,
+    configuration::Configuration, ebpf_manager::EbpfApplication, EventFormatter, TableFormatter,
 };
 use bee_trace_common::{NetworkEvent, ProcessMemoryEvent, SecretAccessEvent};
 use bytes::BytesMut;
@@ -14,16 +13,10 @@ use tokio::{signal, time::timeout};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let args = Args::parse();
+    let cli = bee_trace::cli::CliApp::parse();
 
-    // Validate arguments
-    if let Err(e) = args.validate() {
-        eprintln!("Error: {}", e);
-        std::process::exit(1);
-    }
-
-    // Convert Args to new Configuration system
-    let config = convert_args_to_configuration(&args)?;
+    // Create configuration directly from CLI arguments
+    let config = bee_trace::cli::create_configuration_from_cli_args(&cli.args)?;
 
     env_logger::init();
 
@@ -247,48 +240,6 @@ async fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
-}
-
-/// Convert legacy Args to new Configuration system
-fn convert_args_to_configuration(args: &Args) -> anyhow::Result<Configuration> {
-    let mut cli_args = vec![];
-
-    // Convert probe type
-    cli_args.push("--probe-type");
-    cli_args.push(&args.probe_type);
-
-    // Convert duration if present
-    let duration_str;
-    if let Some(duration) = args.duration {
-        cli_args.push("--duration");
-        duration_str = duration.to_string();
-        cli_args.push(&duration_str);
-    }
-
-    // Convert command filter if present
-    if let Some(ref command) = args.command {
-        cli_args.push("--command");
-        cli_args.push(command);
-    }
-
-    // Convert verbose flag
-    if args.verbose {
-        cli_args.push("--verbose");
-    }
-
-    // Convert security mode flag
-    if args.security_mode {
-        cli_args.push("--security-mode");
-    }
-
-    // Build configuration from CLI args
-    let config = Configuration::builder()
-        .from_cli_args(&cli_args)
-        .map_err(|e| anyhow::anyhow!("Failed to convert args to configuration: {}", e))?
-        .build()
-        .map_err(|e| anyhow::anyhow!("Failed to build configuration: {}", e))?;
-
-    Ok(config)
 }
 
 fn process_security_event(
