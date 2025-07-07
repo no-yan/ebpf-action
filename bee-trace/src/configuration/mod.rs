@@ -201,7 +201,7 @@ impl ConfigurationProvider for OptimizedConfigurationProvider {
         !self.excluded_processes_set.contains(process_name)
     }
 
-    fn get_security_config(&self) -> &Security {
+    fn security_config(&self) -> &Security {
         &self.config.security
     }
 
@@ -258,7 +258,7 @@ impl ConfigurationProvider for Configuration {
             .contains(&process_name.to_string())
     }
 
-    fn get_security_config(&self) -> &Security {
+    fn security_config(&self) -> &Security {
         &self.security
     }
 

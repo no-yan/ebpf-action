@@ -69,7 +69,7 @@ impl<T: ConfigurationProvider> ConfigurableSecurityClassifier<T> {
         }
 
         // Check for safe ports using config access
-        let config = self.config_provider.get_security_config();
+        let config = self.config_provider.security_config();
         if config.network_monitoring.safe_ports.contains(&port) {
             // Check if it's to a local address
             if dest_ip_str.starts_with("127.") || dest_ip_str.starts_with("::1") {

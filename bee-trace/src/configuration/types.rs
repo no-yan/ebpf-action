@@ -196,7 +196,7 @@ pub trait ConfigurationProvider {
     fn should_monitor_process(&self, process_name: &str) -> bool;
 
     /// Get access to the underlying security configuration
-    fn get_security_config(&self) -> &Security;
+    fn security_config(&self) -> &Security;
 
     /// Check if an IP address is blocked
     fn is_ip_blocked(&self, ip: &str) -> bool;

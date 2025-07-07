@@ -456,7 +456,7 @@ mod configuration_provider_tests {
         let config = Configuration::builder().build().unwrap();
         let optimized = OptimizedConfigurationProvider::new(config.clone());
 
-        let security_config = optimized.get_security_config();
+        let security_config = optimized.security_config();
         assert!(!security_config.file_monitoring.sensitive_files.is_empty());
         assert!(!security_config
             .network_monitoring
