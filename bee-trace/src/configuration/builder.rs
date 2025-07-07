@@ -3,32 +3,30 @@
 //! Provides a builder pattern for constructing Configuration instances
 //! from multiple sources with proper validation.
 
-use super::{Configuration, MonitoringConfig, OutputConfig, RuntimeConfig, SecurityConfig};
+use super::{Configuration, Monitoring, Output, Runtime, Security};
 use crate::errors::{BeeTraceError, ProbeType};
 use std::time::Duration;
 
 /// Builder for creating Configuration instances
 ///
-/// Supports fluent API and multiple sources:
+/// Simplified builder that supports:
 /// - CLI arguments
-/// - Configuration files  
-/// - Environment variables
 /// - Defaults
 #[derive(Debug)]
 pub struct ConfigurationBuilder {
-    monitoring: MonitoringConfig,
-    output: OutputConfig,
-    security: SecurityConfig,
-    runtime: RuntimeConfig,
+    monitoring: Monitoring,
+    output: Output,
+    security: Security,
+    runtime: Runtime,
 }
 
 impl ConfigurationBuilder {
     pub fn new() -> Self {
         Self {
-            monitoring: MonitoringConfig::default(),
-            output: OutputConfig::default(),
-            security: SecurityConfig::default(),
-            runtime: RuntimeConfig::default(),
+            monitoring: Monitoring::default(),
+            output: Output::default(),
+            security: Security::default(),
+            runtime: Runtime::default(),
         }
     }
 
@@ -112,22 +110,6 @@ impl ConfigurationBuilder {
         Ok(self)
     }
 
-    /// Configure from YAML configuration file
-    pub fn from_config_file<P: AsRef<std::path::Path>>(
-        mut self,
-        path: P,
-    ) -> Result<Self, BeeTraceError> {
-        // Store the path for now - actual YAML parsing can be added later
-        self.runtime.config_file = Some(path.as_ref().to_path_buf());
-        Ok(self)
-    }
-
-    /// Configure from environment variables
-    pub fn from_environment(self) -> Result<Self, BeeTraceError> {
-        // Environment variable support can be added here later
-        Ok(self)
-    }
-
     /// Build the final configuration
     pub fn build(self) -> Result<Configuration, BeeTraceError> {
         let config = Configuration {
@@ -135,6 +117,12 @@ impl ConfigurationBuilder {
             output: self.output,
             security: self.security,
             runtime: self.runtime,
+            cached_sensitive_files: Default::default(),
+            cached_sensitive_extensions: Default::default(),
+            cached_suspicious_ports: Default::default(),
+            cached_excluded_processes: Default::default(),
+            cached_blocked_ips: Default::default(),
+            cached_blocked_domains: Default::default(),
         };
 
         config.validate()?;

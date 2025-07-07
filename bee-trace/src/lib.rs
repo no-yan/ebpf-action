@@ -3,14 +3,12 @@ use clap::Parser;
 use serde::{Deserialize, Serialize};
 
 pub mod cli;
-pub mod config;
 pub mod configuration;
 pub mod ebpf_manager;
 pub mod errors;
 pub mod output_strategy;
 pub mod report;
 pub mod security_classifier;
-pub mod security_config;
 
 #[derive(Clone)]
 pub enum SecurityEvent {

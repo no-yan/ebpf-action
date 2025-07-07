@@ -13,6 +13,12 @@ pub struct MockEbpf {
     pub should_fail: bool,
 }
 
+impl Default for MockEbpf {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MockEbpf {
     pub fn new() -> Self {
         let mut loaded_programs = std::collections::HashMap::new();

@@ -3,60 +3,57 @@
 //! Defines the core configuration structures used throughout the system.
 
 use crate::errors::ProbeType;
-use std::path::PathBuf;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct MonitoringConfig {
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Monitoring {
     pub probe_types: Vec<ProbeType>,
     pub duration: Option<Duration>,
     pub command_filter: Option<String>,
     pub security_mode: bool,
-    pub exclude_pids: Vec<u32>,
-    pub include_pids: Vec<u32>,
-    pub cpu_limit: Option<u8>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct OutputConfig {
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct Output {
     pub verbose: bool,
-    pub quiet: bool,
-    pub no_header: bool,
-    pub output_file: Option<PathBuf>,
-    pub format: OutputFormat,
-    pub timestamp_format: TimestampFormat,
-    pub filter_severity: Option<SeverityLevel>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct SecurityConfig {
-    pub blocked_ips: Vec<String>,
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Security {
+    pub file_monitoring: FileMonitoring,
+    pub network_monitoring: NetworkMonitoring,
+    pub memory_monitoring: MemoryMonitoring,
     pub blocked_domains: Vec<String>,
-    pub watch_files: Vec<String>,
-    pub secret_env_patterns: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct RuntimeConfig {
-    pub config_file: Option<PathBuf>,
-    pub working_directory: PathBuf,
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FileMonitoring {
+    pub sensitive_files: Vec<String>,
+    pub sensitive_extensions: Vec<String>,
+    pub watch_directories: Vec<String>,
+    pub exclude_patterns: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum OutputFormat {
-    Json,
-    Markdown,
-    Csv,
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NetworkMonitoring {
+    pub suspicious_ports: Vec<u16>,
+    pub safe_ports: Vec<u16>,
+    pub blocked_ips: Vec<String>,
+    pub allowed_ips: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum TimestampFormat {
-    Unix,
-    Iso8601,
-    Relative,
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MemoryMonitoring {
+    pub monitor_ptrace: bool,
+    pub monitor_process_vm: bool,
+    pub excluded_processes: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct Runtime {}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SeverityLevel {
     Low,
     Medium,
@@ -64,39 +61,65 @@ pub enum SeverityLevel {
     Critical,
 }
 
-impl Default for MonitoringConfig {
+impl Default for Monitoring {
     fn default() -> Self {
         Self {
             probe_types: vec![ProbeType::FileMonitor],
             duration: None,
             command_filter: None,
             security_mode: false,
-            exclude_pids: vec![],
-            include_pids: vec![],
-            cpu_limit: None,
         }
     }
 }
 
-impl Default for OutputConfig {
+impl Default for Security {
     fn default() -> Self {
         Self {
-            verbose: false,
-            quiet: false,
-            no_header: false,
-            output_file: None,
-            format: OutputFormat::Json,
-            timestamp_format: TimestampFormat::Iso8601,
-            filter_severity: None,
-        }
-    }
-}
-
-impl Default for RuntimeConfig {
-    fn default() -> Self {
-        Self {
-            config_file: None,
-            working_directory: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+            file_monitoring: FileMonitoring {
+                sensitive_files: vec![
+                    "credentials.json".to_string(),
+                    "id_rsa".to_string(),
+                    "id_dsa".to_string(),
+                    "id_ecdsa".to_string(),
+                    "id_ed25519".to_string(),
+                    ".env".to_string(),
+                    "config.json".to_string(),
+                    "secrets.yaml".to_string(),
+                    "secrets.yml".to_string(),
+                    "private.key".to_string(),
+                ],
+                sensitive_extensions: vec![
+                    ".pem".to_string(),
+                    ".key".to_string(),
+                    ".p12".to_string(),
+                    ".pfx".to_string(),
+                    ".crt".to_string(),
+                    ".cer".to_string(),
+                    ".der".to_string(),
+                ],
+                watch_directories: vec![
+                    "/etc".to_string(),
+                    "/home".to_string(),
+                    "/root".to_string(),
+                ],
+                exclude_patterns: vec!["/tmp".to_string(), "/var/log".to_string()],
+            },
+            network_monitoring: NetworkMonitoring {
+                suspicious_ports: vec![22, 23, 3389, 5900, 6000],
+                safe_ports: vec![80, 443, 53, 993, 995, 587, 465],
+                blocked_ips: vec![],
+                allowed_ips: vec!["127.0.0.1".to_string(), "::1".to_string()],
+            },
+            memory_monitoring: MemoryMonitoring {
+                monitor_ptrace: true,
+                monitor_process_vm: true,
+                excluded_processes: vec![
+                    "gdb".to_string(),
+                    "strace".to_string(),
+                    "ltrace".to_string(),
+                ],
+            },
+            blocked_domains: vec![],
         }
     }
 }

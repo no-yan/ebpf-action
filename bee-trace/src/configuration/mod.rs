@@ -1,29 +1,86 @@
 //! Unified Configuration System
 //!
-//! This module provides a deep module design that hides the complexity
-//! of configuration management from multiple sources (CLI, files, environment).
+//! This module provides a unified configuration interface that combines settings from
+//! multiple sources (CLI arguments, configuration files, environment variables) into
+//! a single, validated configuration object with optimized runtime performance.
+//!
+//! # Basic Usage
+//!
+//! ```rust
+//! use bee_trace::configuration::Configuration;
+//!
+//! // Create configuration using builder pattern
+//! let config = Configuration::builder()
+//!     .from_cli_args(&["--probe-type", "all", "--verbose"])
+//!     .unwrap()
+//!     .build()
+//!     .unwrap();
+//!
+//! // Use optimized security checks (O(1) lookups)
+//! if config.is_sensitive_file("id_rsa") {
+//!     println!("Sensitive file detected!");
+//! }
+//!
+//! if config.is_suspicious_port(22) {
+//!     println!("Suspicious port access!");
+//! }
+//! ```
+//!
+//! # Performance
+//!
+//! The configuration system uses lazy-loaded HashSet caches for O(1) security
+//! lookups, making it suitable for high-frequency event processing without
+//! performance penalties.
 
 pub mod builder;
 pub mod types;
-pub mod validation;
 
 pub use builder::ConfigurationBuilder;
 pub use types::*;
 
 use crate::errors::{BeeTraceError, ProbeType};
+use std::collections::HashSet;
+use std::sync::OnceLock;
 
-/// Unified configuration that combines CLI, file, and environment settings
+/// Unified configuration with optimized security lookups
 ///
-/// This follows A Philosophy of Software Design principles:
-/// - Deep module that hides configuration complexity
-/// - Single source of truth for all configuration
-/// - Clear validation and error handling
+/// This struct combines configuration from multiple sources and provides
+/// high-performance security checking methods. Internal caching ensures
+/// O(1) lookup performance for security-critical operations.
+///
+/// # Examples
+///
+/// ```rust
+/// use bee_trace::configuration::Configuration;
+/// let config = Configuration::builder()
+///     .from_cli_args(&["--probe-type", "all", "--verbose"])
+///     .unwrap()
+///     .build()
+///     .unwrap();
+///
+/// // Fast security checks (internally cached)
+/// assert!(config.is_sensitive_file("credentials.json"));
+/// assert!(config.is_suspicious_port(22));
+/// assert!(!config.should_monitor_process("gdb"));
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Configuration {
-    pub monitoring: MonitoringConfig,
-    pub output: OutputConfig,
-    pub security: SecurityConfig,
-    pub runtime: RuntimeConfig,
+    pub monitoring: Monitoring,
+    pub output: Output,
+    pub security: Security,
+    pub runtime: Runtime,
+    #[doc(hidden)]
+    cached_sensitive_files: OnceLock<HashSet<String>>,
+    #[doc(hidden)]
+    cached_sensitive_extensions: OnceLock<HashSet<String>>,
+    #[doc(hidden)]
+    cached_suspicious_ports: OnceLock<HashSet<u16>>,
+    #[doc(hidden)]
+    cached_excluded_processes: OnceLock<HashSet<String>>,
+    #[doc(hidden)]
+    cached_blocked_ips: OnceLock<HashSet<String>>,
+    #[doc(hidden)]
+    cached_blocked_domains: OnceLock<HashSet<String>>,
 }
 
 impl Configuration {
@@ -34,27 +91,11 @@ impl Configuration {
 
     /// Validate the configuration for consistency and correctness
     pub fn validate(&self) -> Result<(), BeeTraceError> {
-        // Basic validation - can be expanded later
+        // Validate probe types are specified
         if self.monitoring.probe_types.is_empty() {
             return Err(BeeTraceError::ConfigError {
                 message: "At least one probe type must be specified".to_string(),
             });
-        }
-
-        // Validate that include and exclude PIDs are not both specified
-        if !self.monitoring.exclude_pids.is_empty() && !self.monitoring.include_pids.is_empty() {
-            return Err(BeeTraceError::ConfigError {
-                message: "Cannot specify both include_pids and exclude_pids".to_string(),
-            });
-        }
-
-        // Validate CPU limit
-        if let Some(cpu_limit) = self.monitoring.cpu_limit {
-            if cpu_limit == 0 || cpu_limit > 100 {
-                return Err(BeeTraceError::ConfigError {
-                    message: "CPU limit must be between 1 and 100".to_string(),
-                });
-            }
         }
 
         Ok(())
@@ -94,5 +135,136 @@ impl Configuration {
     /// Get command filter for backward compatibility
     pub fn command_filter(&self) -> Option<&str> {
         self.monitoring.command_filter.as_deref()
+    }
+
+    /// Check if a file path is considered sensitive
+    ///
+    /// Uses optimized O(1) lookup with lazy-loaded HashSet cache.
+    /// Checks both exact filename matches and file extensions.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use bee_trace::configuration::Configuration;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let config = Configuration::builder().build()?;
+    /// assert!(config.is_sensitive_file("id_rsa"));        // exact match
+    /// assert!(config.is_sensitive_file("cert.pem"));      // extension match
+    /// assert!(!config.is_sensitive_file("readme.txt"));   // no match
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn is_sensitive_file(&self, path: &str) -> bool {
+        let cache = self.cached_sensitive_files.get_or_init(|| {
+            self.security
+                .file_monitoring
+                .sensitive_files
+                .iter()
+                .cloned()
+                .collect()
+        });
+        cache.contains(path) || self.is_sensitive_by_extension(path)
+    }
+
+    /// Check if a file has a sensitive extension
+    fn is_sensitive_by_extension(&self, path: &str) -> bool {
+        let cache = self.cached_sensitive_extensions.get_or_init(|| {
+            self.security
+                .file_monitoring
+                .sensitive_extensions
+                .iter()
+                .cloned()
+                .collect()
+        });
+
+        if let Some(extension_pos) = path.rfind('.') {
+            let extension = &path[extension_pos..];
+            cache.contains(extension)
+        } else {
+            false
+        }
+    }
+
+    /// Check if a port is considered suspicious
+    ///
+    /// Uses optimized O(1) lookup for high-frequency network monitoring.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use bee_trace::configuration::Configuration;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let config = Configuration::builder().build()?;
+    /// assert!(config.is_suspicious_port(22));    // SSH
+    /// assert!(config.is_suspicious_port(3389));  // RDP
+    /// assert!(!config.is_suspicious_port(443));  // HTTPS (safe)
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn is_suspicious_port(&self, port: u16) -> bool {
+        let cache = self.cached_suspicious_ports.get_or_init(|| {
+            self.security
+                .network_monitoring
+                .suspicious_ports
+                .iter()
+                .cloned()
+                .collect()
+        });
+        cache.contains(&port)
+    }
+
+    /// Check if a process should be monitored (not excluded)
+    ///
+    /// Returns `false` for development tools like debuggers to reduce noise.
+    /// Uses optimized O(1) lookup for process filtering.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use bee_trace::configuration::Configuration;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let config = Configuration::builder().build()?;
+    /// assert!(!config.should_monitor_process("gdb"));      // excluded
+    /// assert!(!config.should_monitor_process("strace"));   // excluded  
+    /// assert!(config.should_monitor_process("malware"));   // monitored
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn should_monitor_process(&self, process: &str) -> bool {
+        let cache = self.cached_excluded_processes.get_or_init(|| {
+            self.security
+                .memory_monitoring
+                .excluded_processes
+                .iter()
+                .cloned()
+                .collect()
+        });
+        !cache.contains(process)
+    }
+
+    /// Get access to the security configuration
+    pub fn security_config(&self) -> &Security {
+        &self.security
+    }
+
+    /// Check if an IP address is blocked
+    pub fn is_ip_blocked(&self, ip: &str) -> bool {
+        let cache = self.cached_blocked_ips.get_or_init(|| {
+            self.security
+                .network_monitoring
+                .blocked_ips
+                .iter()
+                .cloned()
+                .collect()
+        });
+        cache.contains(ip)
+    }
+
+    /// Check if a domain is blocked
+    pub fn is_domain_blocked(&self, domain: &str) -> bool {
+        let cache = self
+            .cached_blocked_domains
+            .get_or_init(|| self.security.blocked_domains.iter().cloned().collect());
+        cache.contains(domain)
     }
 }

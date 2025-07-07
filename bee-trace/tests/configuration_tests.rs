@@ -3,10 +3,8 @@
 //! These tests define the expected behavior of the new configuration
 //! system before implementation exists (Red phase of TDD).
 
-use bee_trace::configuration::types::*;
 use bee_trace::configuration::Configuration;
 use bee_trace::errors::{BeeTraceError, ProbeType};
-use std::path::PathBuf;
 use std::time::Duration;
 
 // Test modules following t-wada's principles
@@ -22,8 +20,8 @@ mod configuration_builder_tests {
         assert_eq!(config.monitoring.duration, None);
         assert!(!config.monitoring.security_mode);
         assert!(!config.output.verbose);
-        assert_eq!(config.output.format, OutputFormat::Json);
-        assert!(config.security.blocked_ips.is_empty());
+        // Output format removed - always JSON
+        assert!(config.security.network_monitoring.blocked_ips.is_empty());
     }
 
     #[test]
@@ -125,6 +123,8 @@ mod configuration_validation_tests {
     }
 }
 
+// File configuration tests removed as YAGNI - functionality not used in production
+
 mod configuration_integration_tests {
     use super::*;
 
@@ -133,19 +133,11 @@ mod configuration_integration_tests {
         let config = Configuration::builder()
             .from_cli_args(&["--probe-type", "all", "--verbose"])
             .unwrap()
-            .from_config_file("test-config.yaml")
-            .unwrap()
-            .from_environment()
-            .unwrap()
             .build()
             .unwrap();
 
         assert_eq!(config.monitoring.probe_types, ProbeType::all());
         assert!(config.output.verbose);
-        assert_eq!(
-            config.runtime.config_file,
-            Some(PathBuf::from("test-config.yaml"))
-        );
     }
 
     #[test]
@@ -186,5 +178,62 @@ mod configuration_integration_tests {
         );
         assert!(config.output.verbose);
         assert!(config.monitoring.security_mode);
+    }
+}
+
+mod configuration_provider_tests {
+    use super::*;
+    #[test]
+    fn should_detect_sensitive_files_via_configuration() {
+        let config = Configuration::builder().build().unwrap();
+
+        // Test optimized implementation with internal caching
+        assert!(config.is_sensitive_file("id_rsa"));
+        assert!(config.is_sensitive_file("credentials.json"));
+        assert!(config.is_sensitive_file("test.pem"));
+        assert!(!config.is_sensitive_file("regular.txt"));
+    }
+
+    #[test]
+    fn should_detect_suspicious_ports_via_configuration() {
+        let config = Configuration::builder().build().unwrap();
+
+        // Test optimized implementation with internal caching
+        assert!(config.is_suspicious_port(22));
+        assert!(config.is_suspicious_port(3389));
+        assert!(!config.is_suspicious_port(80));
+        assert!(!config.is_suspicious_port(443));
+    }
+
+    #[test]
+    fn should_handle_process_monitoring_via_configuration() {
+        let config = Configuration::builder().build().unwrap();
+
+        // Test optimized implementation with internal caching
+        assert!(!config.should_monitor_process("gdb"));
+        assert!(!config.should_monitor_process("strace"));
+        assert!(config.should_monitor_process("suspicious_process"));
+    }
+
+    #[test]
+    fn should_provide_security_config_access() {
+        let config = Configuration::builder().build().unwrap();
+
+        let security_config = config.security_config();
+        assert!(!security_config.file_monitoring.sensitive_files.is_empty());
+        assert!(!security_config
+            .network_monitoring
+            .suspicious_ports
+            .is_empty());
+        assert!(security_config.memory_monitoring.monitor_ptrace);
+    }
+
+    #[test]
+    fn should_handle_ip_and_domain_blocking() {
+        let config = Configuration::builder().build().unwrap();
+
+        // Default config should not block any IPs or domains
+        assert!(!config.is_ip_blocked("192.168.1.1"));
+        assert!(!config.is_domain_blocked("example.com"));
     }
 }
