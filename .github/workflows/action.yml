@@ -3,43 +3,14 @@ on:
   push:
 
 jobs:
-  ebpf-test:
+  integration-test:
+    needs: build-image
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create a image
+      - name: Run full integration test
         run: |
-          docker buildx bake --load
-      - name: Run the image detached
-        run: |
-          docker run -d \
-            --name bee-trace-container \
-            --privileged \
-            --pid=host \
-            -v /:/host \
-            -v /sys/kernel/tracing:/sys/kernel/tracing \
-            -v /proc:/host/proc:ro \
-            myapp --probe-type file_monitor --security-mode --verbose
-
-      - name: Test file_monitor feature
-        run: |
-          sleep 5
-          echo "test-key-content" > id_rsa && cat id_rsa
-          echo "test-credentials" > credentials.json && cat credentials.json
-          echo "SECRET_API_KEY=test" > .env && cat .env
-          echo "test-cert" > server.pem && cat server.pem
-          sleep 10
-
-      - name: Stop the container and check logs
-        run: |
-          echo "📊 Checking bee-trace container logs..."
-          docker logs bee-trace-container
-          echo ""
-          echo "🔍 Looking for security events in logs..."
-          docker logs bee-trace-container 2>&1 | grep -E "(id_rsa|credentials|\.env|\.pem|SENSITIVE|Event sent)" || echo "No security events found in logs"
-          echo ""
-          echo "🏁 Stopping container..."
-          docker stop bee-trace-container
+          chmod +x tests/test.sh
+          ./tests/test.sh

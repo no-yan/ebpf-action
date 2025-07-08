@@ -16,23 +16,18 @@ WORKDIR /app
 # Leverage a bind mount to the src directory to avoid having to copy the
 # source code into the container. Once built, copy the executable to an
 # output directory before the cache mounted /app/target is unmounted.
-RUN --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    apt-get update && \
-    apt-get install -y
-RUN rustup install stable
-RUN rustup toolchain install nightly --component rust-src && \
-    cargo install bpf-linker
-RUN --mount=type=bind,source=bee-trace,target=bee-trace \
-    --mount=type=bind,source=bee-trace-common,target=bee-trace-common \
-    --mount=type=bind,source=bee-trace-ebpf,target=bee-trace-ebpf \
-    --mount=type=bind,source=bee-trace-bindings,target=bee-trace-bindings \
-    --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
-    --mount=type=cache,target=/app/target/ \
+RUN --mount=type=cache,target=/app/target/ \
+    --mount=type=cache,target=/usr/local/cargo/registry/ \
+    rustup toolchain install nightly --component rust-src &&\
+    cargo install bpf-linker --locked
+
+COPY . .
+
+RUN --mount=type=cache,target=/app/target/ \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
     <<EOF
 set -e
-RUST_BACKTRACE=1 cargo build --release
+cargo build --release
 cp ./target/release/$APP_NAME /bin/myapp
 EOF
 
@@ -56,9 +51,6 @@ ARG UID=10001
 
 # Copy the executable from the "build" stage.
 COPY --from=build /bin/myapp /bin/
-
-# Expose the port that the application listens on.
-EXPOSE 1000
 
 # What the container should run when it is started.
 ENTRYPOINT ["/bin/myapp"]

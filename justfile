@@ -61,13 +61,13 @@ run-with-config config_path *args:
 
 # Docker commands
 docker-build:
-    docker buildx bake --load
+    sudo docker buildx bake --load
 
 docker-run:
-    docker run --cap-add CAP_BPF myapp
+    sudo docker run --cap-add CAP_BPF myapp
 
 docker-compose:
-    docker compose up
+    sudo docker compose up
 
 # Demo and testing scenarios
 demo-file-access:
