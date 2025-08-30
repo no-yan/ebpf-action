@@ -27,12 +27,13 @@ RUN --mount=type=bind,source=bee-trace,target=bee-trace \
     --mount=type=bind,source=bee-trace-common,target=bee-trace-common \
     --mount=type=bind,source=bee-trace-ebpf,target=bee-trace-ebpf \
     --mount=type=bind,source=bee-trace-bindings,target=bee-trace-bindings \
+    --mount=type=bind,source=bee-trace-exec-test,target=bee-trace-exec-test \
     --mount=type=bind,source=Cargo.toml,target=Cargo.toml \
     --mount=type=cache,target=/app/target/ \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
     <<EOF
 set -e
-RUST_BACKTRACE=1 cargo build --release
+RUST_BACKTRACE=1 cargo build --release -p bee-trace
 cp ./target/release/$APP_NAME /bin/myapp
 EOF
 
