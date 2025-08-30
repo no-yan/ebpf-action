@@ -290,6 +290,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "bee-trace-exec-test"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "aya",
+ "bee-trace",
+ "bee-trace-common",
+ "bytes",
+ "libc",
+]
+
+[[package]]
 name = "bitflags"
 version = "2.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

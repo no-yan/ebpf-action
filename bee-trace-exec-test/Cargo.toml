@@ -1,0 +1,13 @@
+[package]
+name = "bee-trace-exec-test"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+bee-trace = { path = "../bee-trace" }
+bee-trace-common = { path = "../bee-trace-common", features = ["user"] }
+aya = { workspace = true }
+bytes = "1.0"
+anyhow = { workspace = true, default-features = true }
+libc = { workspace = true }
